@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment04_push_constants_dynamic_uniforms assignment04_push_constants_dynamic_uniforms)

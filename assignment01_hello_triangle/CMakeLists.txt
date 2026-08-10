@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment01_hello_triangle assignment01_hello_triangle)

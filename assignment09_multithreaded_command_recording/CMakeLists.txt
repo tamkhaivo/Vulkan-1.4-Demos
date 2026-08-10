@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment09_multithreaded_command_recording assignment09_multithreaded_command_recording)

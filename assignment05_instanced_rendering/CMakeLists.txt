@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment05_instanced_rendering assignment05_instanced_rendering)

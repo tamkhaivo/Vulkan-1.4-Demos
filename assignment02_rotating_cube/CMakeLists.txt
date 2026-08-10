@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment02_rotating_cube assignment02_rotating_cube)

@@ -1,0 +1,36 @@
+# Vulkan 1.4 Learning Specification - Workspace
+
+This repository contains the structured learning path for mastering the Vulkan 1.4 graphics and compute API based on the **Vulkan 1.4 Learning Specification**.
+
+## Repository Directory Layout
+
+- `common/`: Shared helper headers, Vulkan initializers, math utilities, and application frameworks.
+- `assignment01_hello_triangle/`: **Assignment 1 – Hello Triangle (Dynamic Rendering)**
+  - Demonstrates `VkRenderingInfo` dynamic rendering without `VkRenderPass` or `VkFramebuffer` objects.
+- `assignment02_rotating_cube/`: **Assignment 2 – Rotating Cube with Uniform Buffers**
+  - MVP matrix updates via staging & uniform buffers, descriptor set layouts, and binding contracts.
+- `assignment03_textured_quad/`: **Assignment 3 – Textured Quad with Sampler**
+  - Image creation, layout transitions (`VkImageMemoryBarrier`), staging uploads, and combined image samplers.
+- `assignment04_push_constants_dynamic_uniforms/`: **Assignment 4 – Push Constants and Dynamic Uniform Buffers**
+  - Per-object matrix push constants (`VkPushConstantRange`) & dynamic buffer offsets (`VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC`).
+- `assignment05_instanced_rendering/`: **Assignment 5 – Instanced Rendering with Vertex Attribute Divisor**
+  - Mass instancing using `VkPipelineVertexInputDivisorStateCreateInfoKHR` / per-instance divisors.
+- `assignment06_two_pass_dynamic_rendering_local_read/`: **Assignment 6 – Two-Pass Effect with Dynamic Rendering Local Reads**
+  - On-chip attachment reading via `VK_KHR_dynamic_rendering_local_read` and `VkRenderingInputAttachmentInfoKHR`.
+- `assignment07_compute_particles_indirect_draw/`: **Assignment 7 – Compute Particle System with Indirect Draw**
+  - Compute dispatches (`vkCmdDispatch`), storage buffers (`SSBO`), buffer barriers, and GPU-driven `vkCmdDrawIndirect`.
+- `assignment08_deferred_shading_g_buffer/`: **Assignment 8 – Deferred Shading with Multiple Render Targets (Dynamic Rendering Local Reads)**
+  - G-Buffer layout (Albedo, Normal, Depth) with dynamic rendering local reads in a single fragment shader pass.
+- `assignment09_multithreaded_command_recording/`: **Assignment 9 – Multi-Threaded Command Recording with Timeline Semaphores**
+  - Multi-threaded secondary command buffer recording and timeline semaphore CPU/GPU synchronization (`VkSemaphoreTypeCreateInfo`).
+- `assignment10_buffer_device_address_streaming/`: **Assignment 10 – Buffer Device Address and Zero-Copy Streaming**
+  - Bindless shader access via `VK_KHR_buffer_device_address` (`GL_EXT_buffer_reference`), persistent mapping, and ReBAR streaming.
+
+## Build Instructions
+
+```bash
+mkdir build
+cd build
+cmake ..
+cmake --build .
+```

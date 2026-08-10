@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment07_compute_particles_indirect_draw assignment07_compute_particles_indirect_draw)

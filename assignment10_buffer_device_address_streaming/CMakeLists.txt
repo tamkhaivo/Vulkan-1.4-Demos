@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment10_buffer_device_address_streaming assignment10_buffer_device_address_streaming)

@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment03_textured_quad assignment03_textured_quad)

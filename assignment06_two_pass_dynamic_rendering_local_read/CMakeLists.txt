@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment06_two_pass_dynamic_rendering_local_read assignment06_two_pass_dynamic_rendering_local_read)

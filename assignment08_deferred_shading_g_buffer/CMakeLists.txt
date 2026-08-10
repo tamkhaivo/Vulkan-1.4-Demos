@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment08_deferred_shading_g_buffer assignment08_deferred_shading_g_buffer)
