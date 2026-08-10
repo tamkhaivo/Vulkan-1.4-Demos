@@ -1,3 +1,8 @@
+// ============================================================================
+// Vulkan 1.4 Common Framework Header
+// Standardized for Clang 17+ Compiler and Vulkan 1.4 API Specification
+// ============================================================================
+
 #pragma once
 
 #include <vulkan/vulkan.h>
@@ -8,12 +13,14 @@
 #include <stdexcept>
 #include <cstring>
 #include <optional>
+#include <string>
 
 namespace vk_common {
 
+// Helper to assert VkResult status
 inline void check_vk_result(VkResult err, const char* msg) {
     if (err != VK_SUCCESS) {
-        std::cerr << "[Vulkan Error] " << msg << " Error code: " << err << std::endl;
+        std::cerr << "[Vulkan 1.4 Error] " << msg << " Error code: " << err << std::endl;
         throw std::runtime_error(msg);
     }
 }
@@ -22,6 +29,37 @@ inline void check_vk_result(VkResult err, const char* msg) {
 
 namespace vulkan_utils {
 
+// Structure holding Vulkan 1.4 core function pointers
+struct Vulkan14Functions {
+    PFN_vkCmdBeginRendering vkCmdBeginRendering = nullptr;
+    PFN_vkCmdEndRendering vkCmdEndRendering = nullptr;
+    PFN_vkCmdPipelineBarrier2 vkCmdPipelineBarrier2 = nullptr;
+    PFN_vkGetBufferDeviceAddress vkGetBufferDeviceAddress = nullptr;
+
+    void load(VkDevice device) {
+        vkCmdBeginRendering = (PFN_vkCmdBeginRendering)vkGetDeviceProcAddr(device, "vkCmdBeginRendering");
+        if (!vkCmdBeginRendering) {
+            vkCmdBeginRendering = (PFN_vkCmdBeginRendering)vkGetDeviceProcAddr(device, "vkCmdBeginRenderingKHR");
+        }
+
+        vkCmdEndRendering = (PFN_vkCmdEndRendering)vkGetDeviceProcAddr(device, "vkCmdEndRendering");
+        if (!vkCmdEndRendering) {
+            vkCmdEndRendering = (PFN_vkCmdEndRendering)vkGetDeviceProcAddr(device, "vkCmdEndRenderingKHR");
+        }
+
+        vkCmdPipelineBarrier2 = (PFN_vkCmdPipelineBarrier2)vkGetDeviceProcAddr(device, "vkCmdPipelineBarrier2");
+        if (!vkCmdPipelineBarrier2) {
+            vkCmdPipelineBarrier2 = (PFN_vkCmdPipelineBarrier2)vkGetDeviceProcAddr(device, "vkCmdPipelineBarrier2KHR");
+        }
+
+        vkGetBufferDeviceAddress = (PFN_vkGetBufferDeviceAddress)vkGetDeviceProcAddr(device, "vkGetBufferDeviceAddress");
+        if (!vkGetBufferDeviceAddress) {
+            vkGetBufferDeviceAddress = (PFN_vkGetBufferDeviceAddress)vkGetDeviceProcAddr(device, "vkGetBufferDeviceAddressKHR");
+        }
+    }
+};
+
+// Create GLFW Window for Vulkan
 inline GLFWwindow* createWindow(int width = 800, int height = 600, const char* title = "Vulkan 1.4 Assignment") {
     if (!glfwInit()) {
         throw std::runtime_error("Failed to initialize GLFW");
@@ -36,14 +74,15 @@ inline GLFWwindow* createWindow(int width = 800, int height = 600, const char* t
     return window;
 }
 
+// Create Vulkan 1.4 Instance
 inline VkInstance createInstance() {
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Vulkan 1.4 Application";
+    appInfo.pApplicationName = "Vulkan 1.4 Core Framework";
     appInfo.applicationVersion = VK_MAKE_VERSION(1, 4, 0);
     appInfo.pEngineName = "No Engine";
     appInfo.engineVersion = VK_MAKE_VERSION(1, 4, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_4; // Target Vulkan 1.4 API specification
+    appInfo.apiVersion = VK_API_VERSION_1_4; // Target Vulkan 1.4 Specification
 
     uint32_t glfwExtensionCount = 0;
     const char** glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -87,10 +126,11 @@ inline VkInstance createInstance() {
     }
 
     VkInstance instance;
-    vk_common::check_vk_result(vkCreateInstance(&createInfo, nullptr, &instance), "Failed to create VkInstance");
+    vk_common::check_vk_result(vkCreateInstance(&createInfo, nullptr, &instance), "Failed to create Vulkan 1.4 VkInstance");
     return instance;
 }
 
+// Find Vulkan 1.4 Physical Device
 inline VkPhysicalDevice findPhysicalDevice(VkInstance instance) {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
@@ -110,6 +150,7 @@ inline VkPhysicalDevice findPhysicalDevice(VkInstance instance) {
     return devices[0];
 }
 
+// Find Graphics Queue Family
 inline uint32_t findGraphicsQueueFamily(VkPhysicalDevice physicalDevice) {
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
@@ -124,6 +165,7 @@ inline uint32_t findGraphicsQueueFamily(VkPhysicalDevice physicalDevice) {
     throw std::runtime_error("Failed to find graphics queue family");
 }
 
+// Create Logical Device targeting Vulkan 1.4 with core Dynamic Rendering, Synchronization2, and Buffer Device Address
 inline VkDevice createDevice(VkPhysicalDevice physicalDevice, uint32_t& graphicsQueueFamily) {
     graphicsQueueFamily = findGraphicsQueueFamily(physicalDevice);
 
@@ -138,15 +180,26 @@ inline VkDevice createDevice(VkPhysicalDevice physicalDevice, uint32_t& graphics
         VK_KHR_SWAPCHAIN_EXTENSION_NAME
     };
 
-    // Enable Vulkan 1.3 / 1.4 core features natively (Dynamic Rendering & Synchronization2)
+    // Vulkan 1.2 Core Features (Buffer Device Address & Timeline Semaphores)
+    VkPhysicalDeviceVulkan12Features vulkan12Features{};
+    vulkan12Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
+    vulkan12Features.bufferDeviceAddress = VK_TRUE;
+    vulkan12Features.timelineSemaphore = VK_TRUE;
+    vulkan12Features.descriptorIndexing = VK_TRUE;
+
+    // Vulkan 1.3 Core Features (Dynamic Rendering & Synchronization2)
     VkPhysicalDeviceVulkan13Features vulkan13Features{};
     vulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
+    vulkan13Features.pNext = &vulkan12Features;
     vulkan13Features.dynamicRendering = VK_TRUE;
     vulkan13Features.synchronization2 = VK_TRUE;
+    vulkan13Features.maintenance4 = VK_TRUE;
 
     VkPhysicalDeviceFeatures2 deviceFeatures2{};
     deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     deviceFeatures2.pNext = &vulkan13Features;
+    deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
+    deviceFeatures2.features.multiDrawIndirect = VK_TRUE;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -157,7 +210,7 @@ inline VkDevice createDevice(VkPhysicalDevice physicalDevice, uint32_t& graphics
     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
     VkDevice device;
-    vk_common::check_vk_result(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device), "Failed to create logical device");
+    vk_common::check_vk_result(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device), "Failed to create Vulkan 1.4 logical device");
     return device;
 }
 
@@ -166,16 +219,18 @@ inline VkDevice createDevice(VkPhysicalDevice physicalDevice) {
     return createDevice(physicalDevice, dummyFamily);
 }
 
+// Create Surface via GLFW
 inline VkSurfaceKHR getSurface(VkInstance instance, GLFWwindow* window) {
     VkSurfaceKHR surface;
     vk_common::check_vk_result(glfwCreateWindowSurface(instance, window, nullptr, &surface), "Failed to create window surface");
     return surface;
 }
 
+// Helper to read binary SPIR-V shader files
 inline std::vector<char> readFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
     if (!file.is_open()) {
-        throw std::runtime_error("Failed to open file: " + filename);
+        throw std::runtime_error("Failed to open shader file: " + filename);
     }
     size_t fileSize = (size_t)file.tellg();
     std::vector<char> buffer(fileSize);
@@ -185,6 +240,7 @@ inline std::vector<char> readFile(const std::string& filename) {
     return buffer;
 }
 
+// Create Shader Module
 inline VkShaderModule createShaderModule(VkDevice device, const std::vector<char>& code) {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -194,6 +250,44 @@ inline VkShaderModule createShaderModule(VkDevice device, const std::vector<char
     VkShaderModule shaderModule;
     vk_common::check_vk_result(vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule), "Failed to create shader module");
     return shaderModule;
+}
+
+// Helper for Vulkan 1.4 Synchronization2 Image Layout Transitions
+inline void pipelineBarrier2ImageTransition(
+    VkCommandBuffer cmdBuffer,
+    PFN_vkCmdPipelineBarrier2 cmdBarrier2,
+    VkImage image,
+    VkImageLayout oldLayout,
+    VkImageLayout newLayout,
+    VkPipelineStageFlags2 srcStage,
+    VkAccessFlags2 srcAccess,
+    VkPipelineStageFlags2 dstStage,
+    VkAccessFlags2 dstAccess,
+    VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT
+) {
+    VkImageMemoryBarrier2 barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+    barrier.srcStageMask = srcStage;
+    barrier.srcAccessMask = srcAccess;
+    barrier.dstStageMask = dstStage;
+    barrier.dstAccessMask = dstAccess;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = aspectMask;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    VkDependencyInfo dependencyInfo{};
+    dependencyInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
+    dependencyInfo.imageMemoryBarrierCount = 1;
+    dependencyInfo.pImageMemoryBarriers = &barrier;
+
+    cmdBarrier2(cmdBuffer, &dependencyInfo);
 }
 
 } // namespace vulkan_utils
