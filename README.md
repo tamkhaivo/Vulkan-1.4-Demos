@@ -2,6 +2,8 @@
 
 This repository contains the structured learning path for mastering the Vulkan 1.4 graphics and compute API based on the **Vulkan 1.4 Learning Specification**.
 
+https://docs.vulkan.org/tutorial/latest/00_Introduction.html
+
 ## Repository Directory Layout
 
 - `common/`: Shared helper headers, Vulkan initializers, math utilities, and application frameworks.
