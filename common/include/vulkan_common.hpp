@@ -195,9 +195,16 @@ inline VkDevice createDevice(VkPhysicalDevice physicalDevice, uint32_t& graphics
     vulkan13Features.synchronization2 = VK_TRUE;
     vulkan13Features.maintenance4 = VK_TRUE;
 
+    // Vulkan 1.4 Core Features (Vertex Attribute Divisor, Push Descriptors, etc.)
+    VkPhysicalDeviceVulkan14Features vulkan14Features{};
+    vulkan14Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES;
+    vulkan14Features.pNext = &vulkan13Features;
+    vulkan14Features.vertexAttributeInstanceRateDivisor = VK_TRUE;
+    vulkan14Features.vertexAttributeInstanceRateZeroDivisor = VK_TRUE;
+
     VkPhysicalDeviceFeatures2 deviceFeatures2{};
     deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-    deviceFeatures2.pNext = &vulkan13Features;
+    deviceFeatures2.pNext = &vulkan14Features;
     deviceFeatures2.features.samplerAnisotropy = VK_TRUE;
     deviceFeatures2.features.multiDrawIndirect = VK_TRUE;
 
