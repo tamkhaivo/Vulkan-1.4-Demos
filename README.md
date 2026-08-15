@@ -28,11 +28,20 @@ https://docs.vulkan.org/tutorial/latest/00_Introduction.html
 - `assignment10_buffer_device_address_streaming/`: **Assignment 10 – Buffer Device Address and Zero-Copy Streaming**
   - Bindless shader access via `VK_KHR_buffer_device_address` (`GL_EXT_buffer_reference`), persistent mapping, and ReBAR streaming.
 
-## Build Instructions
+## Build Instructions (Clang 17+ & Vulkan 1.4 Standard)
 
-```bash
-mkdir build
-cd build
-cmake ..
-cmake --build .
+### 1. Configure with Clang Toolset & Vulkan 1.4 SDK:
+```powershell
+cmake -B build -S . -G "Visual Studio 17 2022" -T ClangCL -DCMAKE_PREFIX_PATH="C:/Users/tamkh/Documents/Type0/build/vcpkg_installed/x64-windows"
 ```
+
+### 2. Build Target (e.g. Assignment 1):
+```powershell
+cmake --build build --target assignment01_hello_triangle --config Debug
+```
+
+### 3. Run Executable:
+```powershell
+.\build\bin\Debug\assignment01_hello_triangle.exe
+```
+
