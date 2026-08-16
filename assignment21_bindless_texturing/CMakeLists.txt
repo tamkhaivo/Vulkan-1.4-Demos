@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment21_bindless_texturing assignment21_bindless_texturing)

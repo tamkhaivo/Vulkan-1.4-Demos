@@ -47,6 +47,16 @@ https://docs.vulkan.org/tutorial/latest/00_Introduction.html
   - Dynamic fragment shading rates (`1x1`, `2x2`, `4x4`), shading rate combiner operations, and attachment-driven density maps.
 - `assignment20_sparse_virtual_texturing/`: **Assignment 20 – Sparse Virtual Texturing & Residency Streaming (`sparseResidencyImage2D`)**
   - Virtual texturing page tables, `vkQueueBindSparse` page allocation, residency mip-tail packing, and minimal VRAM footprints.
+- `assignment21_bindless_texturing/`: **Assignment 21 – Bindless Texturing & Non-Uniform Indexing (`GL_EXT_nonuniform_qualifier`)**
+  - Massive unbounded sampler arrays (`sampler2D uTextures[]`), `descriptorBindingPartiallyBound`, and dynamic push constant texture dispatch.
+- `assignment22_async_compute_transfer_overlap/`: **Assignment 22 – Asynchronous Multi-Queue Concurrency & Transfer Overlap**
+  - Concurrent execution across dedicated Graphics, Async Compute, and DMA Transfer queues with timeline semaphores and buffer ownership transfers.
+- `assignment23_conditional_rendering_occlusion_queries/`: **Assignment 23 – Hardware Occlusion Queries & Conditional Rendering (`VK_EXT_conditional_rendering`)**
+  - Zero-CPU-latency GPU draw command skipping with hardware query pools and conditional predication buffers.
+- `assignment24_dynamic_rendering_msaa_resolve/`: **Assignment 24 – Direct Dynamic Rendering Multisampled Resolves & MSAA**
+  - Hardware 4x/8x MSAA with inline `VkRenderingAttachmentInfo.resolveMode` color/depth resolves directly on GPU tile memory.
+- `assignment25_clustered_forward_lighting/`: **Assignment 25 – Clustered Forward 3D Tile Lighting & Workgroup Compute**
+  - 3D view-frustum AABB clustering, workgroup shared memory light culling, and forward evaluation of 1,024 dynamic point lights.
 
 ## Build Instructions (Clang 17+ & Vulkan 1.4 Standard)
 
