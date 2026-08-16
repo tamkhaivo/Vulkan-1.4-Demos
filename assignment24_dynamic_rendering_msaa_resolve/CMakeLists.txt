@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment24_dynamic_rendering_msaa_resolve assignment24_dynamic_rendering_msaa_resolve)
