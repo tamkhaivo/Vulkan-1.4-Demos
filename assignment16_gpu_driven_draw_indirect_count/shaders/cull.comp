@@ -1,0 +1,63 @@
+#version 460
+#extension GL_EXT_buffer_reference : require
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+struct DrawIndexedIndirectCommand {
+    uint indexCount;
+    uint instanceCount;
+    uint firstIndex;
+    int vertexOffset;
+    uint firstInstance;
+};
+
+struct ObjectData {
+    vec4 sphereBounds; // xyz: center, w: radius
+    mat4 modelMatrix;
+};
+
+layout(std430, set = 0, binding = 0) readonly buffer ObjectBuffer {
+    ObjectData objects[];
+};
+
+layout(std430, set = 0, binding = 1) writeonly buffer IndirectDrawBuffer {
+    DrawIndexedIndirectCommand commands[];
+};
+
+layout(std430, set = 0, binding = 2) buffer CountBuffer {
+    uint drawCount;
+};
+
+layout(push_constant) uniform CullingPushConstants {
+    vec4 frustumPlanes[6];
+    uint totalObjects;
+    uint indexCountPerObject;
+} push;
+
+bool isSphereInFrustum(vec3 center, float radius) {
+    for (int i = 0; i < 6; i++) {
+        if (dot(push.frustumPlanes[i].xyz, center) + push.frustumPlanes[i].w < -radius) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void main() {
+    uint gId = gl_GlobalInvocationID.x;
+    if (gId >= push.totalObjects) return;
+
+    ObjectData obj = objects[gId];
+    if (isSphereInFrustum(obj.sphereBounds.xyz, obj.sphereBounds.w)) {
+        uint drawIndex = atomicAdd(drawCount, 1);
+        
+        DrawIndexedIndirectCommand cmd;
+        cmd.indexCount = push.indexCountPerObject;
+        cmd.instanceCount = 1;
+        cmd.firstIndex = 0;
+        cmd.vertexOffset = 0;
+        cmd.firstInstance = gId;
+
+        commands[drawIndex] = cmd;
+    }
+}

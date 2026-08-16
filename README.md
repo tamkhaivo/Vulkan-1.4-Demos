@@ -37,6 +37,16 @@ https://docs.vulkan.org/tutorial/latest/00_Introduction.html
   - Cross-SIMD lane arithmetic reduction (`subgroupAdd`, `subgroupElect`), ballot voting, and bank-conflict-free parallel compute.
 - `assignment15_ray_queries_inline/`: **Assignment 15 – Hardware Ray Queries & Inline Traversal (`VK_KHR_ray_query`)**
   - Ray queries in compute shaders (`rayQueryInitializeEXT`, `rayQueryProceedEXT`), BLAS/TLAS acceleration structures, and real-time shadow queries.
+- `assignment16_gpu_driven_draw_indirect_count/`: **Assignment 16 – GPU-Driven Scene Culling & Multi-Draw Indirect Count (`VK_KHR_draw_indirect_count`)**
+  - GPU compute-driven frustum & occlusion culling, dynamic draw command generation in SSBOs, and `vkCmdDrawIndexedIndirectCountKHR`.
+- `assignment17_shader_objects/`: **Assignment 17 – Next-Gen Pipeline Flexibility with Shader Objects (`VK_EXT_shader_object`)**
+  - Decoupled shader stage creation (`vkCreateShadersEXT`), dynamic state binding (`vkCmdBindShadersEXT`), and pipeline-free architectures.
+- `assignment18_hardware_ray_tracing_pipeline/`: **Assignment 18 – Full Hardware Ray Tracing Pipeline & Shader Binding Tables (`VK_KHR_ray_tracing_pipeline`)**
+  - RayGen, Closest-Hit, Miss shaders, Shader Binding Tables (SBT) stride management, and `vkCmdTraceRaysKHR`.
+- `assignment19_variable_rate_shading/`: **Assignment 19 – Hardware Variable Rate Shading & Density Maps (`VK_KHR_fragment_shading_rate`)**
+  - Dynamic fragment shading rates (`1x1`, `2x2`, `4x4`), shading rate combiner operations, and attachment-driven density maps.
+- `assignment20_sparse_virtual_texturing/`: **Assignment 20 – Sparse Virtual Texturing & Residency Streaming (`sparseResidencyImage2D`)**
+  - Virtual texturing page tables, `vkQueueBindSparse` page allocation, residency mip-tail packing, and minimal VRAM footprints.
 
 ## Build Instructions (Clang 17+ & Vulkan 1.4 Standard)
 

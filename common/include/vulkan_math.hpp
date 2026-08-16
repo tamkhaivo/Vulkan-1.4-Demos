@@ -154,6 +154,133 @@ struct Mat4 {
 
         return res;
     }
+
+    Mat4 inverse() const {
+        Mat4 inv;
+        float invArr[16];
+        const float* mArr = &m[0][0];
+
+        invArr[0] = mArr[5]  * mArr[10] * mArr[15] - 
+                    mArr[5]  * mArr[11] * mArr[14] - 
+                    mArr[9]  * mArr[6]  * mArr[15] + 
+                    mArr[9]  * mArr[7]  * mArr[14] +
+                    mArr[13] * mArr[6]  * mArr[11] - 
+                    mArr[13] * mArr[7]  * mArr[10];
+
+        invArr[4] = -mArr[4]  * mArr[10] * mArr[15] + 
+                     mArr[4]  * mArr[11] * mArr[14] + 
+                     mArr[8]  * mArr[6]  * mArr[15] - 
+                     mArr[8]  * mArr[7]  * mArr[14] - 
+                     mArr[12] * mArr[6]  * mArr[11] + 
+                     mArr[12] * mArr[7]  * mArr[10];
+
+        invArr[8] = mArr[4]  * mArr[9] * mArr[15] - 
+                    mArr[4]  * mArr[11] * mArr[13] - 
+                    mArr[8]  * mArr[5] * mArr[15] + 
+                    mArr[8]  * mArr[7] * mArr[13] + 
+                    mArr[12] * mArr[5] * mArr[11] - 
+                    mArr[12] * mArr[7] * mArr[9];
+
+        invArr[12] = -mArr[4]  * mArr[9] * mArr[14] + 
+                      mArr[4]  * mArr[10] * mArr[13] +
+                      mArr[8]  * mArr[5] * mArr[14] - 
+                      mArr[8]  * mArr[6] * mArr[13] - 
+                      mArr[12] * mArr[5] * mArr[10] + 
+                      mArr[12] * mArr[6] * mArr[9];
+
+        invArr[1] = -mArr[1]  * mArr[10] * mArr[15] + 
+                     mArr[1]  * mArr[11] * mArr[14] + 
+                     mArr[9]  * mArr[2] * mArr[15] - 
+                     mArr[9]  * mArr[3] * mArr[14] - 
+                     mArr[13] * mArr[2] * mArr[11] + 
+                     mArr[13] * mArr[3] * mArr[10];
+
+        invArr[5] = mArr[0]  * mArr[10] * mArr[15] - 
+                    mArr[0]  * mArr[11] * mArr[14] - 
+                    mArr[8]  * mArr[2] * mArr[15] + 
+                    mArr[8]  * mArr[3] * mArr[14] + 
+                    mArr[12] * mArr[2] * mArr[11] - 
+                    mArr[12] * mArr[3] * mArr[10];
+
+        invArr[9] = -mArr[0]  * mArr[9] * mArr[15] + 
+                     mArr[0]  * mArr[11] * mArr[13] + 
+                     mArr[8]  * mArr[1] * mArr[15] - 
+                     mArr[8]  * mArr[3] * mArr[13] - 
+                     mArr[12] * mArr[1] * mArr[11] + 
+                     mArr[12] * mArr[3] * mArr[9];
+
+        invArr[13] = mArr[0]  * mArr[9] * mArr[14] - 
+                     mArr[0]  * mArr[10] * mArr[13] - 
+                     mArr[8]  * mArr[1] * mArr[14] + 
+                     mArr[8]  * mArr[2] * mArr[13] + 
+                     mArr[12] * mArr[1] * mArr[10] - 
+                     mArr[12] * mArr[2] * mArr[9];
+
+        invArr[2] = mArr[1]  * mArr[6] * mArr[15] - 
+                    mArr[1]  * mArr[7] * mArr[14] - 
+                    mArr[5]  * mArr[2] * mArr[15] + 
+                    mArr[5]  * mArr[3] * mArr[14] + 
+                    mArr[13] * mArr[2] * mArr[7] - 
+                    mArr[13] * mArr[3] * mArr[6];
+
+        invArr[6] = -mArr[0]  * mArr[6] * mArr[15] + 
+                     mArr[0]  * mArr[7] * mArr[14] + 
+                     mArr[4]  * mArr[2] * mArr[15] - 
+                     mArr[4]  * mArr[3] * mArr[14] - 
+                     mArr[12] * mArr[2] * mArr[7] + 
+                     mArr[12] * mArr[3] * mArr[6];
+
+        invArr[10] = mArr[0]  * mArr[5] * mArr[15] - 
+                     mArr[0]  * mArr[7] * mArr[13] - 
+                     mArr[4]  * mArr[1] * mArr[15] + 
+                     mArr[4]  * mArr[3] * mArr[13] + 
+                     mArr[12] * mArr[1] * mArr[7] - 
+                     mArr[12] * mArr[3] * mArr[5];
+
+        invArr[14] = -mArr[0]  * mArr[5] * mArr[14] + 
+                      mArr[0]  * mArr[6] * mArr[13] + 
+                      mArr[4]  * mArr[1] * mArr[14] - 
+                      mArr[4]  * mArr[2] * mArr[13] - 
+                      mArr[12] * mArr[1] * mArr[6] + 
+                      mArr[12] * mArr[2] * mArr[5];
+
+        invArr[3] = -mArr[1] * mArr[6] * mArr[11] + 
+                     mArr[1] * mArr[7] * mArr[10] + 
+                     mArr[5] * mArr[2] * mArr[11] - 
+                     mArr[5] * mArr[3] * mArr[10] - 
+                     mArr[9] * mArr[2] * mArr[7] + 
+                     mArr[9] * mArr[3] * mArr[6];
+
+        invArr[7] = mArr[0] * mArr[6] * mArr[11] - 
+                    mArr[0] * mArr[7] * mArr[10] - 
+                    mArr[4] * mArr[2] * mArr[11] + 
+                    mArr[4] * mArr[3] * mArr[10] + 
+                    mArr[8] * mArr[2] * mArr[7] - 
+                    mArr[8] * mArr[3] * mArr[6];
+
+        invArr[11] = -mArr[0] * mArr[5] * mArr[11] + 
+                      mArr[0] * mArr[7] * mArr[9] + 
+                      mArr[4] * mArr[1] * mArr[11] - 
+                      mArr[4] * mArr[3] * mArr[9] - 
+                      mArr[8] * mArr[1] * mArr[7] + 
+                      mArr[8] * mArr[3] * mArr[5];
+
+        invArr[15] = mArr[0] * mArr[5] * mArr[10] - 
+                     mArr[0] * mArr[6] * mArr[9] - 
+                     mArr[4] * mArr[1] * mArr[10] + 
+                     mArr[4] * mArr[2] * mArr[9] + 
+                     mArr[8] * mArr[1] * mArr[6] - 
+                     mArr[8] * mArr[2] * mArr[5];
+
+        float det = mArr[0] * invArr[0] + mArr[1] * invArr[4] + mArr[2] * invArr[8] + mArr[3] * invArr[12];
+        if (det == 0.0f) return identity();
+
+        det = 1.0f / det;
+        for (int i = 0; i < 16; i++) {
+            reinterpret_cast<float*>(&inv.m[0][0])[i] = invArr[i] * det;
+        }
+        return inv;
+    }
 };
 
 } // namespace vk_math
