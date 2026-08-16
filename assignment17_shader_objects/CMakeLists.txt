@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment17_shader_objects assignment17_shader_objects)
