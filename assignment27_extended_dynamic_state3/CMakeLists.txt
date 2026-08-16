@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment27_extended_dynamic_state3 assignment27_extended_dynamic_state3)
