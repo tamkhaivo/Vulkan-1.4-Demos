@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment15_ray_queries_inline assignment15_ray_queries_inline)
