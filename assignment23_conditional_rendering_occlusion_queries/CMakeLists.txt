@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment23_conditional_rendering_occlusion_queries assignment23_conditional_rendering_occlusion_queries)
