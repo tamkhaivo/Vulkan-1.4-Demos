@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment12_descriptor_buffers assignment12_descriptor_buffers)
