@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment20_sparse_virtual_texturing assignment20_sparse_virtual_texturing)
