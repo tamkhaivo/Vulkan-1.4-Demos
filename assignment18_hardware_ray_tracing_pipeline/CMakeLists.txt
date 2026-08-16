@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment18_hardware_ray_tracing_pipeline assignment18_hardware_ray_tracing_pipeline)
