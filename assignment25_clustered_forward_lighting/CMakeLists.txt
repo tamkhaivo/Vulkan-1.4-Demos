@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment25_clustered_forward_lighting assignment25_clustered_forward_lighting)
