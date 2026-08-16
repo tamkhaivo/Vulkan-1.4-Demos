@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment26_device_generated_commands assignment26_device_generated_commands)

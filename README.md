@@ -57,6 +57,16 @@ https://docs.vulkan.org/tutorial/latest/00_Introduction.html
   - Hardware 4x/8x MSAA with inline `VkRenderingAttachmentInfo.resolveMode` color/depth resolves directly on GPU tile memory.
 - `assignment25_clustered_forward_lighting/`: **Assignment 25 – Clustered Forward 3D Tile Lighting & Workgroup Compute**
   - 3D view-frustum AABB clustering, workgroup shared memory light culling, and forward evaluation of 1,024 dynamic point lights.
+- `assignment26_device_generated_commands/`: **Assignment 26 – Device Generated Commands (`VK_NV_device_generated_commands` / `VK_EXT_device_generated_commands`)**
+  - GPU-side command generation, token streams, dynamic PSO switching, and direct device draw call preprocessing.
+- `assignment27_extended_dynamic_state3/`: **Assignment 27 – Extended Dynamic State 3 & Vulkan 1.4 Dynamic Pipelines (`VK_EXT_extended_dynamic_state3`)**
+  - Dynamic polygon mode, dynamic rasterization samples, and blend equations eliminating monolithic PSO bloat.
+- `assignment28_calibrated_timestamps_gpu_profiling/`: **Assignment 28 – Calibrated Timestamps & Hardware Clock Profiling (`VK_KHR_calibrated_timestamps`)**
+  - Correlating GPU clock domains with CPU monotonic timers for nanosecond-accurate GPU profiling and frame pacing.
+- `assignment29_host_image_copy/`: **Assignment 29 – Host Image Copy & Direct Host Uploads (`VK_EXT_host_image_copy`)**
+  - Direct CPU memory-to-image uploads bypassing staging buffer allocations and command buffer submissions.
+- `assignment30_mesh_shading_culling_lod/`: **Assignment 30 – Mesh Shading Cluster Culling & LOD Morphing (`VK_EXT_mesh_shader`)**
+  - Task/amplification shader backface cone culling, frustum sphere culling, and dynamic meshlet LOD morphing.
 
 ## Build Instructions (Clang 17+ & Vulkan 1.4 Standard)
 
