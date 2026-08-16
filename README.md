@@ -27,6 +27,16 @@ https://docs.vulkan.org/tutorial/latest/00_Introduction.html
   - Multi-threaded secondary command buffer recording and timeline semaphore CPU/GPU synchronization (`VkSemaphoreTypeCreateInfo`).
 - `assignment10_buffer_device_address_streaming/`: **Assignment 10 – Buffer Device Address and Zero-Copy Streaming**
   - Bindless shader access via `VK_KHR_buffer_device_address` (`GL_EXT_buffer_reference`), persistent mapping, and ReBAR streaming.
+- `assignment11_mesh_task_shading/`: **Assignment 11 – Modern Mesh & Task Shading Pipeline (`VK_EXT_mesh_shader`)**
+  - Task and mesh shaders replacing fixed-function input assembly, dynamic meshlet generation, and `vkCmdDrawMeshTasksEXT`.
+- `assignment12_descriptor_buffers/`: **Assignment 12 – Modern Bindless with Descriptor Buffers (`VK_EXT_descriptor_buffer`)**
+  - Pool-less descriptor memory packing, direct buffer binding (`vkCmdBindDescriptorBuffersEXT`), and push descriptors.
+- `assignment13_pipeline_binaries_cache/`: **Assignment 13 – Pipeline Binaries & Cache Optimization (`VK_KHR_pipeline_binary` / `VkPipelineCache`)**
+  - Hitch-free PSO pre-warming, disk cache serialization, and Vulkan 1.4 pipeline binary querying.
+- `assignment14_subgroup_arithmetic_reduction/`: **Assignment 14 – Subgroup Operations & Wave-Level Math (`VK_KHR_shader_subgroup_arithmetic`)**
+  - Cross-SIMD lane arithmetic reduction (`subgroupAdd`, `subgroupElect`), ballot voting, and bank-conflict-free parallel compute.
+- `assignment15_ray_queries_inline/`: **Assignment 15 – Hardware Ray Queries & Inline Traversal (`VK_KHR_ray_query`)**
+  - Ray queries in compute shaders (`rayQueryInitializeEXT`, `rayQueryProceedEXT`), BLAS/TLAS acceleration structures, and real-time shadow queries.
 
 ## Build Instructions (Clang 17+ & Vulkan 1.4 Standard)
 

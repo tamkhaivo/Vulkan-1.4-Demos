@@ -1,0 +1,99 @@
+#version 460
+#extension GL_EXT_mesh_shader : require
+
+layout(local_size_x = 3, local_size_y = 1, local_size_z = 1) in;
+layout(triangles, max_vertices = 3, max_primitives = 1) out;
+
+// Task Payload received from Task Shader
+struct TaskPayload {
+    uint meshletIndices[32];
+    uint meshletCount;
+};
+
+taskPayloadSharedEXT TaskPayload payload;
+
+layout(push_constant) uniform PushConsts {
+    mat4 viewProj;
+    float time;
+    uint totalMeshlets;
+} pc;
+
+layout(location = 0) out vec3 outColor[];
+layout(location = 1) out vec3 outNormal[];
+layout(location = 2) out vec3 outWorldPos[];
+
+// Base triangle geometry for each fanning blade
+const vec3 basePos[3] = vec3[3](
+    vec3( 0.0,   0.70, 0.0),  // Outer apex
+    vec3( 0.26, -0.30, 0.0),  // Right base
+    vec3(-0.26, -0.30, 0.0)   // Left base
+);
+
+// High-fidelity color palette for each vertex of the meshlet
+vec3 getBladeColor(uint meshletID, uint vertID) {
+    float hue = float(meshletID) / float(max(pc.totalMeshlets, 1u)) + float(vertID) * 0.15;
+    vec3 a = vec3(0.5, 0.5, 0.5);
+    vec3 b = vec3(0.5, 0.5, 0.5);
+    vec3 c = vec3(1.0, 1.0, 1.0);
+    vec3 d = vec3(0.00, 0.33, 0.67);
+    return a + b * cos(6.2831853 * (c * hue + d));
+}
+
+void main() {
+    uint tid = gl_LocalInvocationIndex; // 0, 1, 2
+    uint meshletID = payload.meshletIndices[0];
+
+    // Define topology size: 1 triangle, 3 vertices per meshlet
+    SetMeshOutputsEXT(3, 1);
+
+    // Precise angular distribution for N meshlets (eliminates harmonic overlap)
+    float TWO_PI = 6.28318530718;
+    float baseAngle = float(meshletID) * (TWO_PI / float(max(pc.totalMeshlets, 1u)));
+    float orbitAngle = baseAngle + pc.time * 0.75;
+
+    // Dynamic fan-out breathing radius
+    float fanRadius = 0.55 + 0.15 * sin(pc.time * 1.5 + float(meshletID) * 0.5);
+
+    // 3D orientation: radial pointing angle + aerodynamic pitch tilt
+    float yaw = orbitAngle - 1.5707963; // point apex radially outward
+    float pitch = 0.35 * sin(pc.time * 2.0 + baseAngle); // aerodynamic blade tilt in Z
+
+    // Local rotation matrix components
+    float cy = cos(yaw),   sy = sin(yaw);
+    float cp = cos(pitch), sp = sin(pitch);
+
+    // Transform vertex position
+    vec3 p = basePos[tid];
+    vec3 localPos = vec3(
+        p.x * cy - (p.y * cp - p.z * sp) * sy,
+        p.x * sy + (p.y * cp - p.z * sp) * cy,
+        p.y * sp + p.z * cp
+    );
+
+    // Fan-out center in XY plane with subtle harmonic Z wave to avoid coplanar intersections
+    vec3 center = vec3(
+        cos(orbitAngle) * fanRadius,
+        sin(orbitAngle) * fanRadius,
+        0.08 * sin(orbitAngle * 2.0 + pc.time * 1.5)
+    );
+
+    vec3 worldPos = center + localPos;
+
+    // Surface normal (derived from rotated face normal)
+    vec3 normal = normalize(vec3(
+        -sp * sy,
+        sp * cy,
+        cp
+    ));
+
+    // Output vertex properties
+    gl_MeshVerticesEXT[tid].gl_Position = pc.viewProj * vec4(worldPos, 1.0);
+    outColor[tid] = getBladeColor(meshletID, tid);
+    outNormal[tid] = normal;
+    outWorldPos[tid] = worldPos;
+
+    // Primitive index generation (single CCW triangle)
+    if (tid == 0) {
+        gl_PrimitiveTriangleIndicesEXT[0] = uvec3(0, 1, 2);
+    }
+}

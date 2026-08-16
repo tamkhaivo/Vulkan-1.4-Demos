@@ -1,0 +1,34 @@
+#version 460
+#extension GL_EXT_mesh_shader : require
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+
+// Task Payload shared with Mesh Shader
+struct TaskPayload {
+    uint meshletIndices[32];
+    uint meshletCount;
+};
+
+taskPayloadSharedEXT TaskPayload payload;
+
+layout(push_constant) uniform PushConsts {
+    mat4 viewProj;
+    float time;
+    uint totalMeshlets;
+} pc;
+
+void main() {
+    uint taskID = gl_GlobalInvocationID.x;
+    
+    // GPU task-level culling / dispatch
+    if (taskID >= pc.totalMeshlets) {
+        EmitMeshTasksEXT(0, 1, 1);
+        return;
+    }
+
+    payload.meshletIndices[0] = taskID;
+    payload.meshletCount = 1;
+
+    // Spawn 1 mesh shader workgroup for this task
+    EmitMeshTasksEXT(1, 1, 1);
+}

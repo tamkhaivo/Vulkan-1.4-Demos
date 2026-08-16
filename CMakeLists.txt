@@ -57,6 +57,8 @@ function(add_vulkan_assignment ASSIGNMENT_DIR ASSIGNMENT_NAME)
                 "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.vert" 
                 "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.frag" 
                 "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.comp"
+                "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.mesh"
+                "${CMAKE_CURRENT_SOURCE_DIR}/shaders/*.task"
             )
             foreach(SHADER ${SHADER_FILES})
                 get_filename_component(FILE_NAME ${SHADER} NAME)
@@ -85,3 +87,8 @@ add_subdirectory(assignment07_compute_particles_indirect_draw)
 add_subdirectory(assignment08_deferred_shading_g_buffer)
 add_subdirectory(assignment09_multithreaded_command_recording)
 add_subdirectory(assignment10_buffer_device_address_streaming)
+add_subdirectory(assignment11_mesh_task_shading)
+add_subdirectory(assignment12_descriptor_buffers)
+add_subdirectory(assignment13_pipeline_binaries_cache)
+add_subdirectory(assignment14_subgroup_arithmetic_reduction)
+add_subdirectory(assignment15_ray_queries_inline)

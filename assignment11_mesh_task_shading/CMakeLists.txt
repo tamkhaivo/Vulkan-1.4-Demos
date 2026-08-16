@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment11_mesh_task_shading assignment11_mesh_task_shading)
