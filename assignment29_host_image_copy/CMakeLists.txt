@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment29_host_image_copy assignment29_host_image_copy)
