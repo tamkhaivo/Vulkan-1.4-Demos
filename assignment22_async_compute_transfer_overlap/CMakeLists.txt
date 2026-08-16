@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment22_async_compute_transfer_overlap assignment22_async_compute_transfer_overlap)

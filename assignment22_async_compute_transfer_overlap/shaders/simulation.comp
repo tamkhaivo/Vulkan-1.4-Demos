@@ -1,0 +1,36 @@
+#version 450
+
+layout(local_size_x = 64) in;
+
+layout(std430, set = 0, binding = 0) buffer ParticleBuffer {
+    vec4 positions[];
+};
+
+layout(std430, set = 0, binding = 1) buffer VelocityBuffer {
+    vec4 velocities[];
+};
+
+layout(push_constant) uniform PushConstants {
+    float dt;
+    uint particleCount;
+} pc;
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+    if (index >= pc.particleCount) return;
+
+    vec4 pos = positions[index];
+    vec4 vel = velocities[index];
+
+    // Simple gravity & motion integration
+    vel.y -= 9.8 * pc.dt;
+    pos.xyz += vel.xyz * pc.dt;
+
+    if (pos.y < -5.0) {
+        pos.y = 5.0;
+        vel.y = 0.0;
+    }
+
+    positions[index] = pos;
+    velocities[index] = vel;
+}
