@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment30_mesh_shading_culling_lod assignment30_mesh_shading_culling_lod)
