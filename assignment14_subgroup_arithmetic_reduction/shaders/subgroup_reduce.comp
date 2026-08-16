@@ -1,0 +1,43 @@
+#version 460
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_ballot : require
+
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
+
+layout(std430, binding = 0) readonly buffer InputBuffer {
+    float values[];
+} inData;
+
+layout(std430, binding = 1) writeonly buffer OutputBuffer {
+    float reducedSum[];
+} outData;
+
+shared float sharedGroupSum[64];
+
+void main() {
+    uint gID = gl_GlobalInvocationID.x;
+    uint lID = gl_LocalInvocationIndex;
+
+    float val = inData.values[gID];
+
+    // High-performance hardware wave-level inclusive / total reduction across SIMD lanes
+    float subgroupSum = subgroupAdd(val);
+
+    // Leader of each subgroup stores sum to shared memory
+    if (subgroupElect()) {
+        sharedGroupSum[gl_SubgroupID] = subgroupSum;
+    }
+
+    barrier();
+
+    // Workgroup leader sums up subgroup components and writes to output buffer
+    if (lID == 0) {
+        float total = 0.0;
+        for (uint i = 0; i < gl_NumSubgroups; ++i) {
+            total += sharedGroupSum[i];
+        }
+        outData.reducedSum[gl_WorkGroupID.x] = total;
+    }
+}
+

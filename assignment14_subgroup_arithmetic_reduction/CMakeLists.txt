@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment14_subgroup_arithmetic_reduction assignment14_subgroup_arithmetic_reduction)
