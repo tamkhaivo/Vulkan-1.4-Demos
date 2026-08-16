@@ -1,0 +1,124 @@
+#version 450
+
+struct Particle {
+    vec4 pos; // xyz = position, w = size / scale
+    vec4 vel; // xyz = velocity, w = life / age
+    vec4 col; // rgba color
+};
+
+// SSBO 0: Current / Previous particle state (Read-Write)
+layout(std430, binding = 0) buffer ParticleBuffer {
+    Particle particles[];
+};
+
+// SSBO 1: Indirect Draw Command Buffer (VkDrawIndirectCommand struct layout)
+struct VkDrawIndirectCommand {
+    uint vertexCount;
+    uint instanceCount;
+    uint firstVertex;
+    uint firstInstance;
+};
+
+layout(std430, binding = 1) buffer IndirectDrawBuffer {
+    VkDrawIndirectCommand indirectCommand;
+};
+
+// Push Constants for dynamic simulation parameters
+layout(push_constant) uniform ComputePushConstants {
+    float dt;
+    float time;
+    uint particleCount;
+    uint resetTrigger;
+} pushConsts;
+
+layout(local_size_x = 256, local_size_y = 1, local_size_z = 1) in;
+
+// Pseudo-random generator for particle respawn
+float hash(vec2 p) {
+    p = fract(p * vec2(123.34, 456.21));
+    p += dot(p, p + 45.32);
+    return fract(p.x * p.y);
+}
+
+void main() {
+    uint index = gl_GlobalInvocationID.x;
+
+    // First invocation resets / initializes the indirect command instance count
+    if (index == 0) {
+        indirectCommand.vertexCount = 4; // 4 vertices per billboard particle (triangle strip or triangle fan)
+        indirectCommand.firstVertex = 0;
+        indirectCommand.firstInstance = 0;
+        indirectCommand.instanceCount = pushConsts.particleCount; // Render all active simulated particles
+    }
+
+    if (index >= pushConsts.particleCount) {
+        return;
+    }
+
+    Particle p = particles[index];
+
+    float dt = pushConsts.dt;
+    float time = pushConsts.time;
+
+    // Gravitational / Swirling Vortex field physics simulation
+    vec3 pos = p.pos.xyz;
+    vec3 vel = p.vel.xyz;
+    float life = p.vel.w;
+    float baseSize = p.pos.w;
+
+    // Vortex Swirl Force around Y axis
+    vec3 center = vec3(0.0, 0.0, 0.0);
+    vec3 toCenter = center - pos;
+    float dist = length(pos.xz) + 0.001;
+    
+    vec3 tangent = normalize(vec3(-pos.z, 0.0, pos.x));
+    float swirlSpeed = 2.5 / (dist * 0.5 + 0.5);
+    
+    // Attractor toward center + upward spiral
+    vec3 accel = tangent * swirlSpeed + toCenter * 0.8;
+    accel.y += sin(time * 2.0 + dist * 3.0) * 1.5 + 0.5;
+
+    // Damping & Velocity integration
+    vel += accel * dt;
+    vel *= 0.985; // Air drag
+    pos += vel * dt;
+    life += dt * 0.35;
+
+    // Respawn particle if it exceeded its lifespan or reset triggered
+    if (life > 1.0 || pushConsts.resetTrigger > 0) {
+        float r1 = hash(vec2(index, time * 0.1));
+        float r2 = hash(vec2(time * 0.2, index));
+        float r3 = hash(vec2(index * 17.13, time));
+        float r4 = hash(vec2(time, index * 31.41));
+
+        float spawnAngle = r1 * 6.2831853;
+        float spawnRadius = 0.2 + r2 * 2.8;
+        pos = vec3(cos(spawnAngle) * spawnRadius, (r3 - 0.5) * 1.5, sin(spawnAngle) * spawnRadius);
+        
+        // Initial tangential burst velocity
+        vec3 initTangent = normalize(vec3(-pos.z, 0.0, pos.x));
+        vel = initTangent * (1.2 + r4 * 1.5) + vec3(0.0, (r2 - 0.3) * 0.8, 0.0);
+        life = 0.0;
+        baseSize = 0.035 + r3 * 0.045;
+    }
+
+    // Dynamic aesthetic color gradient: Cyber-energy violet -> cyan -> gold based on velocity and life
+    float speed = length(vel);
+    float t = clamp(life, 0.0, 1.0);
+    vec3 colA = vec3(0.1, 0.9, 1.0); // Vivid Neon Cyan
+    vec3 colB = vec3(0.9, 0.2, 0.95); // Cyber Violet / Magenta
+    vec3 colC = vec3(1.0, 0.8, 0.2); // Golden Flame
+
+    vec3 finalColor = mix(colA, colB, smoothstep(0.0, 0.5, t));
+    finalColor = mix(finalColor, colC, smoothstep(0.5, 1.0, t));
+    finalColor *= (1.0 + speed * 0.3); // Boost glow with kinetic velocity
+
+    float alpha = sin(t * 3.14159265); // Fade in & fade out smoothly
+
+    // Store updated particle state back into SSBO
+    p.pos = vec4(pos, baseSize);
+    p.vel = vec4(vel, life);
+    p.col = vec4(finalColor, alpha);
+
+    particles[index] = p;
+}
