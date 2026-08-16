@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment19_variable_rate_shading assignment19_variable_rate_shading)
