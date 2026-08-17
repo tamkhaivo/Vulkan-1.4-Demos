@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment37_cooperative_matrix assignment37_cooperative_matrix)

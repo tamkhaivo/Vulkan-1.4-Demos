@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment64_present_timing_frame_pacing assignment64_present_timing_frame_pacing)

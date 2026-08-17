@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment51_dma_sparse_residency_streaming assignment51_dma_sparse_residency_streaming)

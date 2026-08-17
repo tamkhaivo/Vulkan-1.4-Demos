@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment54_device_diagnostic_checkpoints assignment54_device_diagnostic_checkpoints)

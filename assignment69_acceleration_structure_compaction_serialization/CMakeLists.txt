@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment69_acceleration_structure_compaction_serialization assignment69_acceleration_structure_compaction_serialization)

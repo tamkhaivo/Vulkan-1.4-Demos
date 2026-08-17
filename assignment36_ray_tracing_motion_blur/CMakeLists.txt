@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment36_ray_tracing_motion_blur assignment36_ray_tracing_motion_blur)

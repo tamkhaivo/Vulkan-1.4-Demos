@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment68_custom_gpu_memory_allocator assignment68_custom_gpu_memory_allocator)

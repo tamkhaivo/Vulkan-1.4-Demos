@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment59_memory_model_queue_transfers assignment59_memory_model_queue_transfers)

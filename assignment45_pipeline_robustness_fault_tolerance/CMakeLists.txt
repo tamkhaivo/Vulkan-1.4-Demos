@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment45_pipeline_robustness_fault_tolerance assignment45_pipeline_robustness_fault_tolerance)

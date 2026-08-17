@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment67_mesh_shading_multi_topologies assignment67_mesh_shading_multi_topologies)

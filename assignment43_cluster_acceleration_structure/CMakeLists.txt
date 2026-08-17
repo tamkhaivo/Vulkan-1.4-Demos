@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment43_cluster_acceleration_structure assignment43_cluster_acceleration_structure)

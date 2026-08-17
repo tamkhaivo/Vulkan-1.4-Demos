@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment56_dgc_token_multi_pipeline_draws assignment56_dgc_token_multi_pipeline_draws)

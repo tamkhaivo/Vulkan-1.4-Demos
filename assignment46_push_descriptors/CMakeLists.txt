@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment46_push_descriptors assignment46_push_descriptors)

@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment57_hdr_color_space_metadata assignment57_hdr_color_space_metadata)

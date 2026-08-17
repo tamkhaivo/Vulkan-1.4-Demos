@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment49_low_latency_swapchain_timing assignment49_low_latency_swapchain_timing)

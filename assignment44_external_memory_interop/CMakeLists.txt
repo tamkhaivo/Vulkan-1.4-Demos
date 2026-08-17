@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment44_external_memory_interop assignment44_external_memory_interop)

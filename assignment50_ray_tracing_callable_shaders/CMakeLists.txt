@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment50_ray_tracing_callable_shaders assignment50_ray_tracing_callable_shaders)

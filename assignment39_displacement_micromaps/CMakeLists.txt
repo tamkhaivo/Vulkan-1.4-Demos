@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment39_displacement_micromaps assignment39_displacement_micromaps)

@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment66_rasterization_order_subpass_shading assignment66_rasterization_order_subpass_shading)

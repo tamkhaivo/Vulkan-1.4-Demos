@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment58_vulkan_video_hardware_decode assignment58_vulkan_video_hardware_decode)

@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment62_subgroup_cluster_operations assignment62_subgroup_cluster_operations)

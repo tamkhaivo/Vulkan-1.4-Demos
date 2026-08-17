@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment53_ray_tracing_position_fetch assignment53_ray_tracing_position_fetch)

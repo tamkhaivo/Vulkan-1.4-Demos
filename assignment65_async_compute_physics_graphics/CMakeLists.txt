@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment65_async_compute_physics_graphics assignment65_async_compute_physics_graphics)

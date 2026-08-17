@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment60_indirect_ray_tracing_dispatch assignment60_indirect_ray_tracing_dispatch)

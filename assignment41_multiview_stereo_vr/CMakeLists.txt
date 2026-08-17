@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment41_multiview_stereo_vr assignment41_multiview_stereo_vr)

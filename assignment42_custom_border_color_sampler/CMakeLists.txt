@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment42_custom_border_color_sampler assignment42_custom_border_color_sampler)

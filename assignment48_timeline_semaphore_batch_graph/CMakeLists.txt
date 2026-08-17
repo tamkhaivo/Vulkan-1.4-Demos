@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment48_timeline_semaphore_batch_graph assignment48_timeline_semaphore_batch_graph)

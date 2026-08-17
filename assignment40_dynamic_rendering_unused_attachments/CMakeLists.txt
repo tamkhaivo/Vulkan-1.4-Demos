@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment40_dynamic_rendering_unused_attachments assignment40_dynamic_rendering_unused_attachments)

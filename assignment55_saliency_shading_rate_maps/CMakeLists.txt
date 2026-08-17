@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment55_saliency_shading_rate_maps assignment55_saliency_shading_rate_maps)

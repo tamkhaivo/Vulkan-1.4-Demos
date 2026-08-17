@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment47_multiview_mesh_shading assignment47_multiview_mesh_shading)

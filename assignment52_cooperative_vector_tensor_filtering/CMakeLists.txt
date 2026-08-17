@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment52_cooperative_vector_tensor_filtering assignment52_cooperative_vector_tensor_filtering)

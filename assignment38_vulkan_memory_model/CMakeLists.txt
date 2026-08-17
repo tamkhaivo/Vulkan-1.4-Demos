@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment38_vulkan_memory_model assignment38_vulkan_memory_model)

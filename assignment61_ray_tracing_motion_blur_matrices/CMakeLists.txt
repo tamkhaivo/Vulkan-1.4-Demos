@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment61_ray_tracing_motion_blur_matrices assignment61_ray_tracing_motion_blur_matrices)

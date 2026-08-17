@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment70_autonomous_gpu_driven_engine assignment70_autonomous_gpu_driven_engine)

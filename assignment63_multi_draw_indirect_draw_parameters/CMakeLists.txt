@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment63_multi_draw_indirect_draw_parameters assignment63_multi_draw_indirect_draw_parameters)
