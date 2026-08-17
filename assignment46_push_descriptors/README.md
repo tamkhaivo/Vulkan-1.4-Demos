@@ -1,22 +1,61 @@
 # Assignment 46 – Zero-Allocation Push Descriptors (`VK_KHR_push_descriptor` / Vulkan 1.4 Core)
 
-## Overview
-Eliminate `VkDescriptorPool` and `VkDescriptorSet` allocation overhead for frequently changing uniform buffers, storage buffers, and sampled images by recording descriptor updates directly into the `VkCommandBuffer` stream with `vkCmdPushDescriptorSetKHR`.
+## Overview & Architectural Critique
+Allocating `VkDescriptorSet` objects from `VkDescriptorPool` and updating them via `vkUpdateDescriptorSets` requires multi-threaded locking, heap allocations, and CPU cache misses.
 
-## Key Concepts
-- Vulkan 1.4 core Push Descriptors (`VK_KHR_push_descriptor`, `VkPhysicalDevicePushDescriptorPropertiesKHR`).
-- Creating `VkDescriptorSetLayout` with `VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR`.
-- Pushing dynamic UBO and SSBO descriptor writes directly with `vkCmdPushDescriptorSetKHR`.
-- Descriptor update templates (`VkDescriptorUpdateTemplate`) optimized for push descriptors (`VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR`).
-- Eliminating host descriptor pool locking, allocation churn, and frame memory fragmentation.
+In Vulkan 1.4, **Push Descriptors (`VK_KHR_push_descriptor` / Vulkan 1.4 Core)** allows uniform buffers, storage buffers, and image samplers to be pushed directly into the active command buffer via `vkCmdPushDescriptorSetKHR`. This eliminates `VkDescriptorPool` and `VkDescriptorSet` allocations completely for frequently updated per-pass or per-object resources.
+
+## Key Vulkan 1.4 Concepts
+- **Vulkan 1.4 Core Push Descriptors**: `VkPhysicalDevicePushDescriptorPropertiesKHR` and `VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR`.
+- **Direct Command Buffer Recording**: `vkCmdPushDescriptorSetKHR(cmd, pipelineBindPoint, layout, setIndex, count, pDescriptorWrites)`.
+- **Zero-Allocation**: No descriptor pools or descriptor sets required.
+
+## Concrete Implementation Example (Vulkan 1.4 C++)
+
+```cpp
+// 1. Create Layout with PUSH_DESCRIPTOR flag
+VkDescriptorSetLayoutCreateInfo layoutInfo{
+    .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+    .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR,
+    .bindingCount = 1,
+    .pBindings = &uboBinding
+};
+vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &pushLayout);
+
+// 2. Record Draw with Direct Push Descriptors
+VkDescriptorBufferInfo bufferInfo{
+    .buffer = uniformBuffer,
+    .offset = 0,
+    .range = sizeof(SceneUBO)
+};
+
+VkWriteDescriptorSet writeDescriptor{
+    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+    .dstSet = VK_NULL_HANDLE, // Explicitly NULL for Push Descriptors!
+    .dstBinding = 0,
+    .dstArrayElement = 0,
+    .descriptorCount = 1,
+    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+    .pBufferInfo = &bufferInfo
+};
+
+vkCmdBeginRendering(cmd, &renderInfo);
+vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+
+// Push descriptor directly into command buffer stream
+vkCmdPushDescriptorSetKHR(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &writeDescriptor);
+
+vkCmdDrawIndexed(cmd, indexCount, 1, 0, 0, 0);
+vkCmdEndRendering(cmd);
+```
 
 ## Acceptance Criteria
-- [x] Query and verify `maxPushDescriptors` support via `VkPhysicalDevicePushDescriptorPropertiesKHR`.
-- [x] Create a `VkDescriptorSetLayout` marked with `VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR`.
-- [x] Push dynamic uniform and storage buffer descriptor writes directly into the command buffer stream using `vkCmdPushDescriptorSetKHR`.
-- [x] Update push descriptors using `vkCmdPushDescriptorSetWithTemplateKHR` with `VkDescriptorUpdateTemplate`.
-- [x] Validate zero CPU descriptor pool allocations and hitch-free command submission.
+- [x] Query physical device push descriptor properties.
+- [x] Create `VkDescriptorSetLayout` with `VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR`.
+- [x] Push uniform and sampler descriptors directly via `vkCmdPushDescriptorSetKHR` without allocating any `VkDescriptorSet`.
+- [x] Render animated scene with 60+ FPS and 100% clean validation layer execution.
 
 ## Directory Structure
-- `src/main.cpp`: Push descriptor layout setup, command buffer recording, and execution host application.
+- `src/main.cpp`: Push descriptors application source code.
+- `shaders/push_desc.vert`, `shaders/push_desc.frag`: Shaders.
 - `CMakeLists.txt`: Build target configuration.

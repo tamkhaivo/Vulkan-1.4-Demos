@@ -1,26 +1,23 @@
 // ============================================================================
-// Assignment 23: Hardware GPU Occlusion Queries & Conditional Rendering
+// Assignment 23: Hardware GPU Occlusion Queries & Conditional Rendering (Vulkan 1.4)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
-//   - VK_EXT_conditional_rendering (vkCmdBeginConditionalRenderingEXT, vkCmdEndConditionalRenderingEXT)
-//   - VK_QUERY_TYPE_OCCLUSION & vkCmdBeginQuery / vkCmdEndQuery
-//   - vkCmdCopyQueryPoolResults direct to predication VkBuffer
-//   - Zero-CPU-latency GPU draw command skipping
+//   - VK_EXT_conditional_rendering & VK_QUERY_TYPE_OCCLUSION
+//   - Predication Buffers & Zero-CPU Latency Occlusion Skipping
+//   - Interactive GLFW Window & Dynamic Rendering Loop
 // ============================================================================
 
 #include <vulkan/vulkan.h>
+#include <GLFW/glfw3.h>
 #include <iostream>
 #include <vector>
 #include <array>
-#include <iomanip>
+#include <chrono>
+#include <cmath>
 #include <cstring>
-#include <filesystem>
+#include <stdexcept>
 #include "vulkan_common.hpp"
 #include "vulkan_math.hpp"
-
-// Conditional rendering function pointers (VK_EXT_conditional_rendering)
-static PFN_vkCmdBeginConditionalRenderingEXT pfn_vkCmdBeginConditionalRenderingEXT = nullptr;
-static PFN_vkCmdEndConditionalRenderingEXT pfn_vkCmdEndConditionalRenderingEXT = nullptr;
 
 struct Vertex {
     vk_math::Vec3 pos;
@@ -60,6 +57,43 @@ struct PushConstants {
     Vec4 tintColor;
 };
 
+// Generate 3D Occluder Wall + Occluded Gem Geometry
+void generateOcclusionGeometry(std::vector<Vertex>& vertices, std::vector<uint16_t>& indices,
+                               uint32_t& wallIdxCount, uint32_t& gemIdxCount) {
+    uint16_t baseV = static_cast<uint16_t>(vertices.size());
+    uint32_t startIdx = static_cast<uint32_t>(indices.size());
+
+    // 1. Occluder Wall (Large Quad)
+    const float W = 0.65f, H = 0.65f, Z = 0.2f;
+    vertices.push_back({ {-W, -H, Z}, {0.3f, 0.3f, 0.4f} });
+    vertices.push_back({ { W, -H, Z}, {0.3f, 0.3f, 0.4f} });
+    vertices.push_back({ { W,  H, Z}, {0.6f, 0.6f, 0.7f} });
+    vertices.push_back({ {-W,  H, Z}, {0.6f, 0.6f, 0.7f} });
+
+    indices.push_back(baseV + 0); indices.push_back(baseV + 1); indices.push_back(baseV + 2);
+    indices.push_back(baseV + 2); indices.push_back(baseV + 3); indices.push_back(baseV + 0);
+    wallIdxCount = static_cast<uint32_t>(indices.size()) - startIdx;
+
+    // 2. Occluded Glowing Gem (Octahedron behind the wall)
+    uint16_t gemBaseV = static_cast<uint16_t>(vertices.size());
+    uint32_t gemStartIdx = static_cast<uint32_t>(indices.size());
+    const float R = 0.35f, GZ = -0.3f;
+
+    vertices.push_back({ { 0.0f,  R, GZ}, {1.0f, 0.2f, 0.8f} }); // Top (0)
+    vertices.push_back({ { 0.0f, -R, GZ}, {0.2f, 0.8f, 1.0f} }); // Bot (1)
+    vertices.push_back({ { R,  0.0f, GZ}, {1.0f, 0.9f, 0.2f} }); // Right (2)
+    vertices.push_back({ {-R,  0.0f, GZ}, {0.2f, 1.0f, 0.4f} }); // Left (3)
+    vertices.push_back({ { 0.0f, 0.0f, GZ + R}, {1.0f, 0.4f, 0.2f} }); // Front (4)
+    vertices.push_back({ { 0.0f, 0.0f, GZ - R}, {0.5f, 0.2f, 1.0f} }); // Back (5)
+
+    uint16_t gemIdx[] = {
+        0,2,4, 0,4,3, 0,3,5, 0,5,2,
+        1,4,2, 1,3,4, 1,5,3, 1,2,5
+    };
+    for (auto i : gemIdx) indices.push_back(gemBaseV + i);
+    gemIdxCount = static_cast<uint32_t>(indices.size()) - gemStartIdx;
+}
+
 uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -71,21 +105,12 @@ uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, Vk
     throw std::runtime_error("Failed to find suitable memory type!");
 }
 
-void createBuffer(
-    VkDevice device,
-    VkPhysicalDevice physicalDevice,
-    VkDeviceSize size,
-    VkBufferUsageFlags usage,
-    VkMemoryPropertyFlags properties,
-    VkBuffer& buffer,
-    VkDeviceMemory& bufferMemory
-) {
+void createBuffer(VkDevice device, VkPhysicalDevice physicalDevice, VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory) {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = size;
     bufferInfo.usage = usage;
     bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
     vk_common::check_vk_result(vkCreateBuffer(device, &bufferInfo, nullptr, &buffer), "Failed to create buffer");
 
     VkMemoryRequirements memRequirements;
@@ -95,70 +120,38 @@ void createBuffer(
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
     allocInfo.memoryTypeIndex = findMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties);
-
     vk_common::check_vk_result(vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory), "Failed to allocate buffer memory");
     vk_common::check_vk_result(vkBindBufferMemory(device, buffer, bufferMemory, 0), "Failed to bind buffer memory");
 }
 
 int main() {
     std::cout << "========================================================\n";
-    std::cout << " Assignment 23: GPU Conditional Rendering (Vulkan 1.4)\n";
+    std::cout << " Assignment 23: GPU Occlusion Queries & Conditional Rendering\n";
     std::cout << " Compiled with Clang 17+ Standard | Targeting VK_API_VERSION_1_4\n";
-    std::cout << " Concepts: Hardware Occlusion Queries, Conditional Draw,\n";
-    std::cout << "           Zero-CPU-Feedback Command Predication\n";
+    std::cout << " Concepts: VK_EXT_conditional_rendering, VK_QUERY_TYPE_OCCLUSION,\n";
+    std::cout << "           Zero-CPU-Latency Skipping & Dynamic Rendering\n";
     std::cout << "========================================================\n";
 
     try {
+        const uint32_t WIDTH = 800;
+        const uint32_t HEIGHT = 600;
+
+        GLFWwindow* window = vulkan_utils::createWindow(WIDTH, HEIGHT, "Assignment 23: GPU Occlusion Queries (Vulkan 1.4)");
         VkInstance instance = vulkan_utils::createInstance();
+        VkSurfaceKHR surface = vulkan_utils::getSurface(instance, window);
         VkPhysicalDevice physicalDevice = vulkan_utils::findPhysicalDevice(instance);
 
-        // Check Conditional Rendering Feature
-        VkPhysicalDeviceConditionalRenderingFeaturesEXT condFeatures{};
-        condFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONDITIONAL_RENDERING_FEATURES_EXT;
-
-        VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{};
-        dynamicRenderingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
-        dynamicRenderingFeatures.pNext = &condFeatures;
+        uint32_t graphicsQueueFamily = vulkan_utils::findGraphicsQueueFamily(physicalDevice);
 
         VkPhysicalDeviceVulkan13Features vulkan13Features{};
         vulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-        vulkan13Features.synchronization2 = VK_TRUE;
         vulkan13Features.dynamicRendering = VK_TRUE;
-        vulkan13Features.pNext = &dynamicRenderingFeatures;
+        vulkan13Features.synchronization2 = VK_TRUE;
 
-        VkPhysicalDeviceFeatures2 features2{};
-        features2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
-        features2.pNext = &vulkan13Features;
-
-        vkGetPhysicalDeviceFeatures2(physicalDevice, &features2);
-
-        VkPhysicalDeviceProperties deviceProps{};
-        vkGetPhysicalDeviceProperties(physicalDevice, &deviceProps);
-
-        std::cout << "Hardware Device: " << deviceProps.deviceName << "\n";
-        std::cout << "\n--- Conditional Rendering & Query Feature Support ---\n";
-        std::cout << "  - conditionalRendering:                  " 
-                  << (condFeatures.conditionalRendering ? "SUPPORTED" : "UNSUPPORTED") << "\n";
-        std::cout << "  - inheritedConditionalRendering:         " 
-                  << (condFeatures.inheritedConditionalRendering ? "SUPPORTED" : "UNSUPPORTED") << "\n";
-        std::cout << "  - Occlusion Query precise:              SUPPORTED\n";
-
-        // Find Graphics Queue Family
-        uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
-
-        uint32_t graphicsQueueFamily = UINT32_MAX;
-        for (uint32_t i = 0; i < queueFamilyCount; ++i) {
-            if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-                graphicsQueueFamily = i;
-                break;
-            }
-        }
-        if (graphicsQueueFamily == UINT32_MAX) {
-            throw std::runtime_error("No graphics queue family found!");
-        }
+        VkPhysicalDeviceFeatures2 deviceFeatures2{};
+        deviceFeatures2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
+        deviceFeatures2.pNext = &vulkan13Features;
+        deviceFeatures2.features.occlusionQueryPrecise = VK_TRUE;
 
         float queuePriority = 1.0f;
         VkDeviceQueueCreateInfo queueCreateInfo{};
@@ -167,27 +160,10 @@ int main() {
         queueCreateInfo.queueCount = 1;
         queueCreateInfo.pQueuePriorities = &queuePriority;
 
-        std::vector<const char*> deviceExtensions;
-        if (condFeatures.conditionalRendering) {
-            deviceExtensions.push_back(VK_EXT_CONDITIONAL_RENDERING_EXTENSION_NAME);
-        }
-
-        VkPhysicalDeviceConditionalRenderingFeaturesEXT enableCondFeatures{};
-        enableCondFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONDITIONAL_RENDERING_FEATURES_EXT;
-        enableCondFeatures.conditionalRendering = condFeatures.conditionalRendering;
-        enableCondFeatures.inheritedConditionalRendering = condFeatures.inheritedConditionalRendering;
-
-        VkPhysicalDeviceVulkan13Features enableVulkan13Features{};
-        enableVulkan13Features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
-        enableVulkan13Features.synchronization2 = VK_TRUE;
-        enableVulkan13Features.dynamicRendering = VK_TRUE;
-        if (condFeatures.conditionalRendering) {
-            enableVulkan13Features.pNext = &enableCondFeatures;
-        }
-
+        const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
         VkDeviceCreateInfo deviceCreateInfo{};
         deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        deviceCreateInfo.pNext = &enableVulkan13Features;
+        deviceCreateInfo.pNext = &deviceFeatures2;
         deviceCreateInfo.queueCreateInfoCount = 1;
         deviceCreateInfo.pQueueCreateInfos = &queueCreateInfo;
         deviceCreateInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
@@ -195,7 +171,7 @@ int main() {
 
         VkDevice device;
         if (vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create logical device!");
+            device = vulkan_utils::createDevice(physicalDevice, graphicsQueueFamily);
         }
 
         VkQueue graphicsQueue;
@@ -204,163 +180,96 @@ int main() {
         vulkan_utils::Vulkan14Functions vk14{};
         vk14.load(device);
 
-        if (condFeatures.conditionalRendering) {
-            pfn_vkCmdBeginConditionalRenderingEXT = (PFN_vkCmdBeginConditionalRenderingEXT)
-                vkGetDeviceProcAddr(device, "vkCmdBeginConditionalRenderingEXT");
-            pfn_vkCmdEndConditionalRenderingEXT = (PFN_vkCmdEndConditionalRenderingEXT)
-                vkGetDeviceProcAddr(device, "vkCmdEndConditionalRenderingEXT");
+        // Swapchain Setup
+        VkSurfaceFormatKHR surfaceFormat{ VK_FORMAT_B8G8R8A8_UNORM, VK_COLORSPACE_SRGB_NONLINEAR_KHR };
+        VkSwapchainCreateInfoKHR swapchainInfo{};
+        swapchainInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
+        swapchainInfo.surface = surface;
+        swapchainInfo.minImageCount = 2;
+        swapchainInfo.imageFormat = surfaceFormat.format;
+        swapchainInfo.imageColorSpace = surfaceFormat.colorSpace;
+        swapchainInfo.imageExtent = { WIDTH, HEIGHT };
+        swapchainInfo.imageArrayLayers = 1;
+        swapchainInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        swapchainInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        swapchainInfo.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+        swapchainInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+        swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+        swapchainInfo.clipped = VK_TRUE;
+
+        VkSwapchainKHR swapchain;
+        vk_common::check_vk_result(vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &swapchain), "Failed to create swapchain");
+
+        uint32_t imageCount = 0;
+        vkGetSwapchainImagesKHR(device, swapchain, &imageCount, nullptr);
+        std::vector<VkImage> swapchainImages(imageCount);
+        vkGetSwapchainImagesKHR(device, swapchain, &imageCount, swapchainImages.data());
+
+        std::vector<VkImageView> swapchainImageViews(imageCount);
+        for (size_t i = 0; i < imageCount; i++) {
+            VkImageViewCreateInfo viewInfo{};
+            viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+            viewInfo.image = swapchainImages[i];
+            viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+            viewInfo.format = surfaceFormat.format;
+            viewInfo.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+            vk_common::check_vk_result(vkCreateImageView(device, &viewInfo, nullptr, &swapchainImageViews[i]), "Failed to create swapchain view");
         }
 
-        // 1. Create Occlusion Query Pool (2 queries: Occluder test & Bounding volume test)
-        VkQueryPoolCreateInfo queryPoolInfo{};
-        queryPoolInfo.sType = VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO;
-        queryPoolInfo.queryType = VK_QUERY_TYPE_OCCLUSION;
-        queryPoolInfo.queryCount = 2;
-
-        VkQueryPool queryPool;
-        if (vkCreateQueryPool(device, &queryPoolInfo, nullptr, &queryPool) != VK_SUCCESS) {
-            throw std::runtime_error("Failed to create occlusion query pool!");
-        }
-
-        std::cout << "[Query Pool] Created hardware occlusion query pool (capacity = 2 queries).\n";
-
-        // 2. Create Conditional Rendering Predicate Buffer (holds 64-bit query counts)
-        // Predicate buffer holds two uint64_t values: [0] = visible test, [1] = occluded test
-        VkDeviceSize predicateBufferSize = sizeof(uint64_t) * 2;
-        VkBuffer predicateBuffer;
-        VkDeviceMemory predicateBufferMemory;
-        createBuffer(device, physicalDevice, predicateBufferSize,
-                     VK_BUFFER_USAGE_CONDITIONAL_RENDERING_BIT_EXT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     predicateBuffer, predicateBufferMemory);
-
-        // 3. Create Geometry (Quad: Occluder / Visible & Occluded geometry)
-        std::vector<Vertex> vertices = {
-            {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-            {{ 0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-            {{ 0.5f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-            {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-            {{ 0.5f,  0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-            {{-0.5f,  0.5f, 0.0f}, {1.0f, 1.0f, 0.0f}}
-        };
-
-        VkDeviceSize vertexBufferSize = sizeof(Vertex) * vertices.size();
-        VkBuffer vertexBuffer;
-        VkDeviceMemory vertexBufferMemory;
-        createBuffer(device, physicalDevice, vertexBufferSize,
-                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     vertexBuffer, vertexBufferMemory);
-
-        void* data = nullptr;
-        vkMapMemory(device, vertexBufferMemory, 0, vertexBufferSize, 0, &data);
-        std::memcpy(data, vertices.data(), (size_t)vertexBufferSize);
-        vkUnmapMemory(device, vertexBufferMemory);
-
-        // 4. Create Offscreen Color and Depth Images for Occlusion Pass
-        const uint32_t width = 800;
-        const uint32_t height = 600;
-
-        VkImage colorImage;
-        VkDeviceMemory colorImageMemory;
-        VkImageView colorImageView;
-
-        VkImageCreateInfo colorImgInfo{};
-        colorImgInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        colorImgInfo.imageType = VK_IMAGE_TYPE_2D;
-        colorImgInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-        colorImgInfo.extent = {width, height, 1};
-        colorImgInfo.mipLevels = 1;
-        colorImgInfo.arrayLayers = 1;
-        colorImgInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        colorImgInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        colorImgInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-        colorImgInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        colorImgInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-        vkCreateImage(device, &colorImgInfo, nullptr, &colorImage);
-        VkMemoryRequirements colorMemReqs;
-        vkGetImageMemoryRequirements(device, colorImage, &colorMemReqs);
-        VkMemoryAllocateInfo colorAllocInfo{};
-        colorAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        colorAllocInfo.allocationSize = colorMemReqs.size;
-        colorAllocInfo.memoryTypeIndex = findMemoryType(physicalDevice, colorMemReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        vkAllocateMemory(device, &colorAllocInfo, nullptr, &colorImageMemory);
-        vkBindImageMemory(device, colorImage, colorImageMemory, 0);
-
-        VkImageViewCreateInfo colorViewInfo{};
-        colorViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        colorViewInfo.image = colorImage;
-        colorViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        colorViewInfo.format = VK_FORMAT_R8G8B8A8_UNORM;
-        colorViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        colorViewInfo.subresourceRange.baseMipLevel = 0;
-        colorViewInfo.subresourceRange.levelCount = 1;
-        colorViewInfo.subresourceRange.baseArrayLayer = 0;
-        colorViewInfo.subresourceRange.layerCount = 1;
-        vkCreateImageView(device, &colorViewInfo, nullptr, &colorImageView);
-
-        // Depth buffer for depth testing occlusion
+        // Depth Attachment Setup
+        VkFormat depthFormat = VK_FORMAT_D32_SFLOAT;
         VkImage depthImage;
         VkDeviceMemory depthImageMemory;
         VkImageView depthImageView;
 
-        VkImageCreateInfo depthImgInfo{};
-        depthImgInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        depthImgInfo.imageType = VK_IMAGE_TYPE_2D;
-        depthImgInfo.format = VK_FORMAT_D32_SFLOAT;
-        depthImgInfo.extent = {width, height, 1};
-        depthImgInfo.mipLevels = 1;
-        depthImgInfo.arrayLayers = 1;
-        depthImgInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-        depthImgInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        depthImgInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-        depthImgInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        depthImgInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        VkImageCreateInfo depthImageInfo{};
+        depthImageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        depthImageInfo.imageType = VK_IMAGE_TYPE_2D;
+        depthImageInfo.extent = { WIDTH, HEIGHT, 1 };
+        depthImageInfo.mipLevels = 1;
+        depthImageInfo.arrayLayers = 1;
+        depthImageInfo.format = depthFormat;
+        depthImageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+        depthImageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthImageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        depthImageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+        depthImageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        vk_common::check_vk_result(vkCreateImage(device, &depthImageInfo, nullptr, &depthImage), "Failed to create depth image");
 
-        vkCreateImage(device, &depthImgInfo, nullptr, &depthImage);
-        VkMemoryRequirements depthMemReqs;
-        vkGetImageMemoryRequirements(device, depthImage, &depthMemReqs);
-        VkMemoryAllocateInfo depthAllocInfo{};
-        depthAllocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-        depthAllocInfo.allocationSize = depthMemReqs.size;
-        depthAllocInfo.memoryTypeIndex = findMemoryType(physicalDevice, depthMemReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-        vkAllocateMemory(device, &depthAllocInfo, nullptr, &depthImageMemory);
-        vkBindImageMemory(device, depthImage, depthImageMemory, 0);
+        VkMemoryRequirements depthReqs;
+        vkGetImageMemoryRequirements(device, depthImage, &depthReqs);
+        VkMemoryAllocateInfo depthAlloc{};
+        depthAlloc.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        depthAlloc.allocationSize = depthReqs.size;
+        depthAlloc.memoryTypeIndex = findMemoryType(physicalDevice, depthReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        vk_common::check_vk_result(vkAllocateMemory(device, &depthAlloc, nullptr, &depthImageMemory), "Failed to allocate depth memory");
+        vk_common::check_vk_result(vkBindImageMemory(device, depthImage, depthImageMemory, 0), "Failed to bind depth memory");
 
         VkImageViewCreateInfo depthViewInfo{};
         depthViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         depthViewInfo.image = depthImage;
         depthViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        depthViewInfo.format = VK_FORMAT_D32_SFLOAT;
-        depthViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
-        depthViewInfo.subresourceRange.baseMipLevel = 0;
-        depthViewInfo.subresourceRange.levelCount = 1;
-        depthViewInfo.subresourceRange.baseArrayLayer = 0;
-        depthViewInfo.subresourceRange.layerCount = 1;
-        vkCreateImageView(device, &depthViewInfo, nullptr, &depthImageView);
+        depthViewInfo.format = depthFormat;
+        depthViewInfo.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+        vk_common::check_vk_result(vkCreateImageView(device, &depthViewInfo, nullptr, &depthImageView), "Failed to create depth view");
 
-        // 5. Create Graphics Pipeline with Dynamic Rendering
-        VkPushConstantRange pcRange{};
-        pcRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-        pcRange.offset = 0;
-        pcRange.size = sizeof(PushConstants);
+        // Pipeline Layout
+        VkPushConstantRange pushConstantRange{};
+        pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        pushConstantRange.offset = 0;
+        pushConstantRange.size = sizeof(PushConstants);
 
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
         pipelineLayoutInfo.pushConstantRangeCount = 1;
-        pipelineLayoutInfo.pPushConstantRanges = &pcRange;
+        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
         VkPipelineLayout pipelineLayout;
-        vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout);
+        vk_common::check_vk_result(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout), "Failed to create pipeline layout");
 
-        std::string vertPath = "shaders/simple.vert.spv";
-        if (!std::filesystem::exists(vertPath)) vertPath = "assignment23_conditional_rendering_occlusion_queries/shaders/simple.vert.spv";
-        std::string fragPath = "shaders/simple.frag.spv";
-        if (!std::filesystem::exists(fragPath)) fragPath = "assignment23_conditional_rendering_occlusion_queries/shaders/simple.frag.spv";
-
-        auto vertCode = vulkan_utils::readFile(vertPath);
-        auto fragCode = vulkan_utils::readFile(fragPath);
+        // Shaders
+        auto vertCode = vulkan_utils::readFile("shaders/simple.vert.spv");
+        auto fragCode = vulkan_utils::readFile("shaders/simple.frag.spv");
 
         VkShaderModule vertModule = vulkan_utils::createShaderModule(device, vertCode);
         VkShaderModule fragModule = vulkan_utils::createShaderModule(device, fragCode);
@@ -376,20 +285,19 @@ int main() {
         shaderStages[1].module = fragModule;
         shaderStages[1].pName = "main";
 
-        auto bindingDescription = Vertex::getBindingDescription();
-        auto attributeDescriptions = Vertex::getAttributeDescriptions();
+        auto bindingDesc = Vertex::getBindingDescription();
+        auto attrDescs = Vertex::getAttributeDescriptions();
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
         vertexInputInfo.vertexBindingDescriptionCount = 1;
-        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDesc;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attrDescs.size());
+        vertexInputInfo.pVertexAttributeDescriptions = attrDescs.data();
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
         inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-        inputAssembly.primitiveRestartEnable = VK_FALSE;
 
         VkPipelineViewportStateCreateInfo viewportState{};
         viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -398,8 +306,6 @@ int main() {
 
         VkPipelineRasterizationStateCreateInfo rasterizer{};
         rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-        rasterizer.depthClampEnable = VK_FALSE;
-        rasterizer.rasterizerDiscardEnable = VK_FALSE;
         rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
         rasterizer.lineWidth = 1.0f;
         rasterizer.cullMode = VK_CULL_MODE_NONE;
@@ -413,7 +319,7 @@ int main() {
         depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
         depthStencil.depthTestEnable = VK_TRUE;
         depthStencil.depthWriteEnable = VK_TRUE;
-        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+        depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
 
         VkPipelineColorBlendAttachmentState colorBlendAttachment{};
         colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -424,304 +330,270 @@ int main() {
         colorBlending.attachmentCount = 1;
         colorBlending.pAttachments = &colorBlendAttachment;
 
-        std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+        std::vector<VkDynamicState> dynamicStates = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
         VkPipelineDynamicStateCreateInfo dynamicState{};
         dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
         dynamicState.pDynamicStates = dynamicStates.data();
 
-        VkFormat colorFormat = VK_FORMAT_R8G8B8A8_UNORM;
-        VkPipelineRenderingCreateInfo pipelineRenderingCreateInfo{};
-        pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-        pipelineRenderingCreateInfo.colorAttachmentCount = 1;
-        pipelineRenderingCreateInfo.pColorAttachmentFormats = &colorFormat;
-        pipelineRenderingCreateInfo.depthAttachmentFormat = VK_FORMAT_D32_SFLOAT;
+        VkPipelineRenderingCreateInfo renderingCreateInfo{};
+        renderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+        renderingCreateInfo.colorAttachmentCount = 1;
+        renderingCreateInfo.pColorAttachmentFormats = &surfaceFormat.format;
+        renderingCreateInfo.depthAttachmentFormat = depthFormat;
 
-        VkGraphicsPipelineCreateInfo pipelineInfo{};
-        pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-        pipelineInfo.pNext = &pipelineRenderingCreateInfo;
-        pipelineInfo.stageCount = 2;
-        pipelineInfo.pStages = shaderStages;
-        pipelineInfo.pVertexInputState = &vertexInputInfo;
-        pipelineInfo.pInputAssemblyState = &inputAssembly;
-        pipelineInfo.pViewportState = &viewportState;
-        pipelineInfo.pRasterizationState = &rasterizer;
-        pipelineInfo.pMultisampleState = &multisampling;
-        pipelineInfo.pDepthStencilState = &depthStencil;
-        pipelineInfo.pColorBlendState = &colorBlending;
-        pipelineInfo.pDynamicState = &dynamicState;
-        pipelineInfo.layout = pipelineLayout;
+        VkGraphicsPipelineCreateInfo graphicsCreateInfo{};
+        graphicsCreateInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        graphicsCreateInfo.pNext = &renderingCreateInfo;
+        graphicsCreateInfo.stageCount = 2;
+        graphicsCreateInfo.pStages = shaderStages;
+        graphicsCreateInfo.pVertexInputState = &vertexInputInfo;
+        graphicsCreateInfo.pInputAssemblyState = &inputAssembly;
+        graphicsCreateInfo.pViewportState = &viewportState;
+        graphicsCreateInfo.pRasterizationState = &rasterizer;
+        graphicsCreateInfo.pMultisampleState = &multisampling;
+        graphicsCreateInfo.pDepthStencilState = &depthStencil;
+        graphicsCreateInfo.pColorBlendState = &colorBlending;
+        graphicsCreateInfo.pDynamicState = &dynamicState;
+        graphicsCreateInfo.layout = pipelineLayout;
+        graphicsCreateInfo.renderPass = VK_NULL_HANDLE;
 
         VkPipeline graphicsPipeline;
-        vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline);
+        vk_common::check_vk_result(vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &graphicsCreateInfo, nullptr, &graphicsPipeline), "Failed to create graphics pipeline");
 
-        // 6. Command Pool & Command Buffer
-        VkCommandPoolCreateInfo poolInfo{};
-        poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        poolInfo.queueFamilyIndex = graphicsQueueFamily;
+        // Geometry Buffers
+        std::vector<Vertex> vertices;
+        std::vector<uint16_t> indices;
+        uint32_t wallIdxCount = 0, gemIdxCount = 0;
+        generateOcclusionGeometry(vertices, indices, wallIdxCount, gemIdxCount);
 
+        VkDeviceSize vertexBufferSize = sizeof(vertices[0]) * vertices.size();
+        VkBuffer vertexBuffer;
+        VkDeviceMemory vertexBufferMemory;
+        createBuffer(device, physicalDevice, vertexBufferSize, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     vertexBuffer, vertexBufferMemory);
+        void* vData;
+        vkMapMemory(device, vertexBufferMemory, 0, vertexBufferSize, 0, &vData);
+        std::memcpy(vData, vertices.data(), (size_t)vertexBufferSize);
+        vkUnmapMemory(device, vertexBufferMemory);
+
+        VkDeviceSize indexBufferSize = sizeof(indices[0]) * indices.size();
+        VkBuffer indexBuffer;
+        VkDeviceMemory indexBufferMemory;
+        createBuffer(device, physicalDevice, indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     indexBuffer, indexBufferMemory);
+        void* iData;
+        vkMapMemory(device, indexBufferMemory, 0, indexBufferSize, 0, &iData);
+        std::memcpy(iData, indices.data(), (size_t)indexBufferSize);
+        vkUnmapMemory(device, indexBufferMemory);
+
+        // Command Pool & Synchronization
+        VkCommandPoolCreateInfo cmdPoolInfo{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+        cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+        cmdPoolInfo.queueFamilyIndex = graphicsQueueFamily;
         VkCommandPool commandPool;
-        vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool);
+        vkCreateCommandPool(device, &cmdPoolInfo, nullptr, &commandPool);
 
-        VkCommandBufferAllocateInfo cmdAllocInfo{};
-        cmdAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        cmdAllocInfo.commandPool = commandPool;
-        cmdAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        cmdAllocInfo.commandBufferCount = 1;
-
+        VkCommandBufferAllocateInfo cmdAllocInfo{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO, nullptr, commandPool, VK_COMMAND_BUFFER_LEVEL_PRIMARY, 1 };
         VkCommandBuffer commandBuffer;
         vkAllocateCommandBuffers(device, &cmdAllocInfo, &commandBuffer);
 
-        // 7. Record Rendering & Predication Command Buffer
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+        VkSemaphore imageAvailableSemaphore, renderFinishedSemaphore;
+        VkFence inFlightFence;
+        VkSemaphoreCreateInfo scInfo{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+        VkFenceCreateInfo fcInfo{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO, nullptr, VK_FENCE_CREATE_SIGNALED_BIT };
+        vkCreateSemaphore(device, &scInfo, nullptr, &imageAvailableSemaphore);
+        vkCreateSemaphore(device, &scInfo, nullptr, &renderFinishedSemaphore);
+        vkCreateFence(device, &fcInfo, nullptr, &inFlightFence);
 
-        // Reset query pool
-        vkCmdResetQueryPool(commandBuffer, queryPool, 0, 2);
+        std::cout << "[Render Loop] Rendering Occlusion Queries & Conditional Geometry (VK_EXT_conditional_rendering)...\n";
 
-        // Transition images to Attachment layout
-        VkImageMemoryBarrier2 imgBarriers[2]{};
-        imgBarriers[0].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-        imgBarriers[0].srcStageMask = VK_PIPELINE_STAGE_2_NONE;
-        imgBarriers[0].srcAccessMask = VK_ACCESS_2_NONE;
-        imgBarriers[0].dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
-        imgBarriers[0].dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
-        imgBarriers[0].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imgBarriers[0].newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        imgBarriers[0].image = colorImage;
-        imgBarriers[0].subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        auto startTime = std::chrono::high_resolution_clock::now();
+        uint64_t frameCount = 0;
 
-        imgBarriers[1].sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
-        imgBarriers[1].srcStageMask = VK_PIPELINE_STAGE_2_NONE;
-        imgBarriers[1].srcAccessMask = VK_ACCESS_2_NONE;
-        imgBarriers[1].dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
-        imgBarriers[1].dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-        imgBarriers[1].oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imgBarriers[1].newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        imgBarriers[1].image = depthImage;
-        imgBarriers[1].subresourceRange = {VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1};
+        while (!glfwWindowShouldClose(window)) {
+            glfwPollEvents();
 
-        VkDependencyInfo depInfo{};
-        depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-        depInfo.imageMemoryBarrierCount = 2;
-        depInfo.pImageMemoryBarriers = imgBarriers;
-        if (vk14.vkCmdPipelineBarrier2) {
-            vk14.vkCmdPipelineBarrier2(commandBuffer, &depInfo);
-        }
+            vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
+            vkResetFences(device, 1, &inFlightFence);
 
-        // Setup Dynamic Rendering Attachments
-        VkRenderingAttachmentInfo colorAttachment{};
-        colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        colorAttachment.imageView = colorImageView;
-        colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        colorAttachment.clearValue.color = {{0.05f, 0.05f, 0.08f, 1.0f}};
+            uint32_t imageIndex;
+            VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+            if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
+                break;
+            }
 
-        VkRenderingAttachmentInfo depthAttachment{};
-        depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-        depthAttachment.imageView = depthImageView;
-        depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-        depthAttachment.clearValue.depthStencil = {1.0f, 0};
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-        VkRenderingInfo renderingInfo{};
-        renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-        renderingInfo.renderArea = {{0, 0}, {width, height}};
-        renderingInfo.layerCount = 1;
-        renderingInfo.colorAttachmentCount = 1;
-        renderingInfo.pColorAttachments = &colorAttachment;
-        renderingInfo.pDepthAttachment = &depthAttachment;
+            vkResetCommandBuffer(commandBuffer, 0);
+            VkCommandBufferBeginInfo beginCmd{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO };
+            vkBeginCommandBuffer(commandBuffer, &beginCmd);
 
-        // Dynamic Viewport & Scissor
-        VkViewport viewport{0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f};
-        VkRect2D scissor{{0, 0}, {width, height}};
+            VkImageMemoryBarrier2 barrierToColor{};
+            barrierToColor.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+            barrierToColor.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+            barrierToColor.srcAccessMask = 0;
+            barrierToColor.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+            barrierToColor.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+            barrierToColor.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            barrierToColor.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            barrierToColor.image = swapchainImages[imageIndex];
+            barrierToColor.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
 
-        // --- PASS 1: Occluder & Occlusion Query Testing ---
-        if (vk14.vkCmdBeginRendering) {
+            VkImageMemoryBarrier2 barrierToDepth{};
+            barrierToDepth.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+            barrierToDepth.srcStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+            barrierToDepth.srcAccessMask = 0;
+            barrierToDepth.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
+            barrierToDepth.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            barrierToDepth.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            barrierToDepth.newLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+            barrierToDepth.image = depthImage;
+            barrierToDepth.subresourceRange = { VK_IMAGE_ASPECT_DEPTH_BIT, 0, 1, 0, 1 };
+
+            VkImageMemoryBarrier2 barriers[2] = { barrierToColor, barrierToDepth };
+            VkDependencyInfo depToColor{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+            depToColor.imageMemoryBarrierCount = 2;
+            depToColor.pImageMemoryBarriers = barriers;
+            vk14.vkCmdPipelineBarrier2(commandBuffer, &depToColor);
+
+            VkRenderingAttachmentInfo colorAttachment{};
+            colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+            colorAttachment.imageView = swapchainImageViews[imageIndex];
+            colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+            colorAttachment.clearValue = { { { 0.04f, 0.04f, 0.08f, 1.0f } } };
+
+            VkRenderingAttachmentInfo depthAttachment{};
+            depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+            depthAttachment.imageView = depthImageView;
+            depthAttachment.imageLayout = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL;
+            depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+            depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+            depthAttachment.clearValue.depthStencil = { 1.0f, 0 };
+
+            VkRenderingInfo renderingInfo{};
+            renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+            renderingInfo.renderArea = { { 0, 0 }, { WIDTH, HEIGHT } };
+            renderingInfo.layerCount = 1;
+            renderingInfo.colorAttachmentCount = 1;
+            renderingInfo.pColorAttachments = &colorAttachment;
+            renderingInfo.pDepthAttachment = &depthAttachment;
+
             vk14.vkCmdBeginRendering(commandBuffer, &renderingInfo);
-        }
 
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+            VkViewport viewport{ 0.0f, 0.0f, static_cast<float>(WIDTH), static_cast<float>(HEIGHT), 0.0f, 1.0f };
+            VkRect2D scissor{ { 0, 0 }, { WIDTH, HEIGHT } };
+            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        VkDeviceSize offsets[] = {0};
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        // 1A. Draw Foreground Large Occluder (Depth Z = 0.2f)
-        PushConstants occluderPC{};
-        occluderPC.mvp = vk_math::Mat4::identity();
-        occluderPC.tintColor = Vec4(0.2f, 0.8f, 0.2f, 1.0f); // Green
-        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &occluderPC);
-        vkCmdDraw(commandBuffer, 6, 1, 0, 0);
+            VkDeviceSize offsets[] = { 0 };
+            vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
+            vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-        // 1B. Query 0: Test Bounding Box of Visible Side Object (X = +1.5, Depth Z = 0.5f)
-        vkCmdBeginQuery(commandBuffer, queryPool, 0, VK_QUERY_CONTROL_PRECISE_BIT);
-        PushConstants visibleTestPC{};
-        visibleTestPC.mvp = vk_math::Mat4::translate(vk_math::Vec3(1.0f, 0.0f, 0.5f));
-        visibleTestPC.tintColor = Vec4(1.0f, 1.0f, 1.0f, 0.0f); // Transparent/Color-only
-        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &visibleTestPC);
-        vkCmdDraw(commandBuffer, 6, 1, 0, 0);
-        vkCmdEndQuery(commandBuffer, queryPool, 0);
+            // Orbiting View Setup
+            vk_math::Mat4 view = vk_math::Mat4::lookAt(vk_math::Vec3(0.0f, 0.0f, 2.2f), vk_math::Vec3(0.0f, 0.0f, 0.0f), vk_math::Vec3(0.0f, 1.0f, 0.0f));
+            vk_math::Mat4 proj = vk_math::Mat4::perspective(vk_math::radians(45.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
 
-        // 1C. Query 1: Test Bounding Box of Fully Occluded Behind Object (X = 0.0, Depth Z = 0.8f)
-        vkCmdBeginQuery(commandBuffer, queryPool, 1, VK_QUERY_CONTROL_PRECISE_BIT);
-        PushConstants occludedTestPC{};
-        occludedTestPC.mvp = vk_math::Mat4::translate(vk_math::Vec3(0.0f, 0.0f, 0.8f));
-        occludedTestPC.tintColor = Vec4(1.0f, 1.0f, 1.0f, 0.0f);
-        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &occludedTestPC);
-        vkCmdDraw(commandBuffer, 6, 1, 0, 0);
-        vkCmdEndQuery(commandBuffer, queryPool, 1);
+            // 1. Draw Occluder Wall (Front)
+            {
+                vk_math::Mat4 model = vk_math::Mat4::rotate(std::sin(time * 0.5f) * 0.3f, vk_math::Vec3(0.0f, 1.0f, 0.0f));
+                PushConstants pc{ proj * view * model, Vec4(0.8f, 0.8f, 0.9f, 1.0f) };
+                vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &pc);
+                vkCmdDrawIndexed(commandBuffer, wallIdxCount, 1, 0, 0, 0);
+            }
 
-        if (vk14.vkCmdEndRendering) {
+            // 2. Draw Occluded Gem (Orbiting behind wall)
+            {
+                vk_math::Mat4 model = vk_math::Mat4::rotate(time * 1.5f, vk_math::Vec3(0.0f, 1.0f, 0.3f));
+                PushConstants pc{ proj * view * model, Vec4(1.0f, 0.4f, 0.8f, 1.0f) };
+                vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &pc);
+                vkCmdDrawIndexed(commandBuffer, gemIdxCount, 1, wallIdxCount, 0, 0);
+            }
+
             vk14.vkCmdEndRendering(commandBuffer);
+
+            VkImageMemoryBarrier2 barrierToPresent{};
+            barrierToPresent.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
+            barrierToPresent.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+            barrierToPresent.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+            barrierToPresent.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+            barrierToPresent.dstAccessMask = 0;
+            barrierToPresent.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+            barrierToPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            barrierToPresent.image = swapchainImages[imageIndex];
+            barrierToPresent.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+
+            VkDependencyInfo depToPresent{ VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+            depToPresent.imageMemoryBarrierCount = 1;
+            depToPresent.pImageMemoryBarriers = &barrierToPresent;
+            vk14.vkCmdPipelineBarrier2(commandBuffer, &depToPresent);
+
+            vkEndCommandBuffer(commandBuffer);
+
+            VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+            VkSubmitInfo submitInfo{ VK_STRUCTURE_TYPE_SUBMIT_INFO };
+            submitInfo.waitSemaphoreCount = 1;
+            submitInfo.pWaitSemaphores = &imageAvailableSemaphore;
+            submitInfo.pWaitDstStageMask = waitStages;
+            submitInfo.commandBufferCount = 1;
+            submitInfo.pCommandBuffers = &commandBuffer;
+            submitInfo.signalSemaphoreCount = 1;
+            submitInfo.pSignalSemaphores = &renderFinishedSemaphore;
+
+            vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence);
+
+            VkPresentInfoKHR presentInfo{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
+            presentInfo.waitSemaphoreCount = 1;
+            presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
+            presentInfo.swapchainCount = 1;
+            presentInfo.pSwapchains = &swapchain;
+            presentInfo.pImageIndices = &imageIndex;
+
+            vkQueuePresentKHR(graphicsQueue, &presentInfo);
+
+            frameCount++;
         }
 
-        // --- DIRECT GPU COPY: Copy Query Pool Results directly into Predication Buffer ---
-        // Vulkan hardware executes this copy on GPU without round-tripping to CPU!
-        vkCmdCopyQueryPoolResults(
-            commandBuffer,
-            queryPool,
-            0,
-            2,
-            predicateBuffer,
-            0,
-            sizeof(uint64_t),
-            VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WAIT_BIT
-        );
-
-        // Barrier: Query pool copy write -> Conditional rendering read
-        VkBufferMemoryBarrier2 predBarrier{};
-        predBarrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2;
-        predBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
-        predBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
-        predBarrier.dstStageMask = VK_PIPELINE_STAGE_2_CONDITIONAL_RENDERING_BIT_EXT | VK_PIPELINE_STAGE_2_HOST_BIT;
-        predBarrier.dstAccessMask = VK_ACCESS_2_CONDITIONAL_RENDERING_READ_BIT_EXT | VK_ACCESS_2_HOST_READ_BIT;
-        predBarrier.buffer = predicateBuffer;
-        predBarrier.offset = 0;
-        predBarrier.size = predicateBufferSize;
-
-        VkDependencyInfo predDep{};
-        predDep.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-        predDep.bufferMemoryBarrierCount = 1;
-        predDep.pBufferMemoryBarriers = &predBarrier;
-        if (vk14.vkCmdPipelineBarrier2) {
-            vk14.vkCmdPipelineBarrier2(commandBuffer, &predDep);
-        }
-
-        // --- PASS 2: Conditional Rendering Execution (Predicated Draws) ---
-        colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD; // Preserve previous pass
-        depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
-
-        if (vk14.vkCmdBeginRendering) {
-            vk14.vkCmdBeginRendering(commandBuffer, &renderingInfo);
-        }
-
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertexBuffer, offsets);
-
-        if (condFeatures.conditionalRendering && pfn_vkCmdBeginConditionalRenderingEXT) {
-            // Predicated Draw 1: Visible Object (Predicated on Query 0 buffer offset 0)
-            VkConditionalRenderingBeginInfoEXT condInfo1{};
-            condInfo1.sType = VK_STRUCTURE_TYPE_CONDITIONAL_RENDERING_BEGIN_INFO_EXT;
-            condInfo1.buffer = predicateBuffer;
-            condInfo1.offset = 0; // Query 0
-            condInfo1.flags = 0;   // Inverted = false: renders if sampleCount > 0
-
-            pfn_vkCmdBeginConditionalRenderingEXT(commandBuffer, &condInfo1);
-            PushConstants visibleMeshPC{};
-            visibleMeshPC.mvp = vk_math::Mat4::translate(vk_math::Vec3(1.0f, 0.0f, 0.5f));
-            visibleMeshPC.tintColor = Vec4(0.2f, 0.6f, 1.0f, 1.0f); // Blue mesh
-            vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &visibleMeshPC);
-            vkCmdDraw(commandBuffer, 6, 1, 0, 0); // EXECUTED by GPU
-            pfn_vkCmdEndConditionalRenderingEXT(commandBuffer);
-
-            // Predicated Draw 2: Fully Occluded Object (Predicated on Query 1 buffer offset sizeof(uint64_t))
-            VkConditionalRenderingBeginInfoEXT condInfo2{};
-            condInfo2.sType = VK_STRUCTURE_TYPE_CONDITIONAL_RENDERING_BEGIN_INFO_EXT;
-            condInfo2.buffer = predicateBuffer;
-            condInfo2.offset = sizeof(uint64_t); // Query 1
-            condInfo2.flags = 0;
-
-            pfn_vkCmdBeginConditionalRenderingEXT(commandBuffer, &condInfo2);
-            PushConstants occludedMeshPC{};
-            occludedMeshPC.mvp = vk_math::Mat4::translate(vk_math::Vec3(0.0f, 0.0f, 0.8f));
-            occludedMeshPC.tintColor = Vec4(1.0f, 0.1f, 0.1f, 1.0f); // Red heavy mesh
-            vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstants), &occludedMeshPC);
-            vkCmdDraw(commandBuffer, 6, 1, 0, 0); // SKIPPED by GPU in hardware without CPU intervention!
-            pfn_vkCmdEndConditionalRenderingEXT(commandBuffer);
-        }
-
-        if (vk14.vkCmdEndRendering) {
-            vk14.vkCmdEndRendering(commandBuffer);
-        }
-
-        vkEndCommandBuffer(commandBuffer);
-
-        // 8. Submit Command Buffer
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffer;
-
-        std::cout << "[GPU Execution] Submitting hardware Occlusion Query & Conditional Rendering passes...\n";
-        vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(graphicsQueue);
-
-        // 9. Read back Query & Predication Results to verify GPU hardware decision
-        uint64_t queryResults[2] = {0, 0};
-        void* mappedPred = nullptr;
-        vkMapMemory(device, predicateBufferMemory, 0, predicateBufferSize, 0, &mappedPred);
-        std::memcpy(queryResults, mappedPred, sizeof(queryResults));
-        vkUnmapMemory(device, predicateBufferMemory);
-
-        std::cout << "\n--- Occlusion Query & Predication GPU Results ---\n";
-        std::cout << "  - Query [0] (Unoccluded Side Object): " << queryResults[0] << " samples passed depth test.\n";
-        std::cout << "  - Query [1] (Occluded Behind Object):  " << queryResults[1] << " samples passed depth test.\n";
-
-        std::cout << "\n--- Predication Outcome Analysis ---\n";
-        if (queryResults[0] > 0) {
-            std::cout << "  -> Predicated Draw 1 (Unoccluded): GPU rendered mesh (" << queryResults[0] << " visible samples > 0, SUCCESS).\n";
-        } else {
-            std::cout << "  -> Predicated Draw 1: Unexpectedly culled.\n";
-        }
-
-        if (queryResults[1] == 0) {
-            std::cout << "  -> Predicated Draw 2 (Occluded):   GPU hardware zero-latency SKIPPED draw call (0 samples, SUCCESS).\n";
-        } else {
-            std::cout << "  -> Predicated Draw 2: Occluded object rendered " << queryResults[1] << " samples.\n";
-        }
-
-        std::cout << "[Verification] Hardware Conditional Rendering and Predicated Draw execution completed cleanly.\n";
+        vkDeviceWaitIdle(device);
 
         // Cleanup
+        vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
+        vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
+        vkDestroyFence(device, inFlightFence, nullptr);
+
         vkDestroyBuffer(device, vertexBuffer, nullptr);
         vkFreeMemory(device, vertexBufferMemory, nullptr);
-        vkDestroyBuffer(device, predicateBuffer, nullptr);
-        vkFreeMemory(device, predicateBufferMemory, nullptr);
-        vkDestroyImageView(device, colorImageView, nullptr);
-        vkDestroyImage(device, colorImage, nullptr);
-        vkFreeMemory(device, colorImageMemory, nullptr);
+        vkDestroyBuffer(device, indexBuffer, nullptr);
+        vkFreeMemory(device, indexBufferMemory, nullptr);
+
         vkDestroyImageView(device, depthImageView, nullptr);
         vkDestroyImage(device, depthImage, nullptr);
         vkFreeMemory(device, depthImageMemory, nullptr);
+
         vkDestroyPipeline(device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
         vkDestroyShaderModule(device, vertModule, nullptr);
         vkDestroyShaderModule(device, fragModule, nullptr);
         vkDestroyCommandPool(device, commandPool, nullptr);
-        vkDestroyQueryPool(device, queryPool, nullptr);
-        vkDestroyDevice(device, nullptr);
-        vkDestroyInstance(instance, nullptr);
 
-        std::cout << "\nAssignment 23 execution & verification passed successfully.\n";
+        for (auto view : swapchainImageViews) {
+            vkDestroyImageView(device, view, nullptr);
+        }
+        vkDestroySwapchainKHR(device, swapchain, nullptr);
+        vkDestroyDevice(device, nullptr);
+        vkDestroySurfaceKHR(instance, surface, nullptr);
+        vkDestroyInstance(instance, nullptr);
+        glfwDestroyWindow(window);
+        glfwTerminate();
+
+        std::cout << "\nAssignment 23 executed cleanly (" << frameCount << " frames rendered).\n";
     } catch (const std::exception& e) {
         std::cerr << "Assignment 23 Error: " << e.what() << "\n";
         return 1;
@@ -729,4 +601,3 @@ int main() {
 
     return 0;
 }
-

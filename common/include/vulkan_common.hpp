@@ -235,16 +235,92 @@ inline VkSurfaceKHR getSurface(VkInstance instance, GLFWwindow* window) {
 
 // Helper to read binary SPIR-V shader files
 inline std::vector<char> readFile(const std::string& filename) {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
-    if (!file.is_open()) {
-        throw std::runtime_error("Failed to open shader file: " + filename);
+    std::vector<std::string> candidates = {
+        filename,
+        "assignment01_hello_triangle/" + filename,
+        "assignment02_rotating_cube/" + filename,
+        "assignment03_textured_quad/" + filename,
+        "assignment04_push_constants_dynamic_uniforms/" + filename,
+        "assignment05_instanced_rendering/" + filename,
+        "assignment06_two_pass_dynamic_rendering_local_read/" + filename,
+        "assignment07_compute_particles_indirect_draw/" + filename,
+        "assignment08_deferred_shading_g_buffer/" + filename,
+        "assignment09_multithreaded_command_recording/" + filename,
+        "assignment10_buffer_device_address_streaming/" + filename,
+        "assignment11_mesh_task_shading/" + filename,
+        "assignment12_descriptor_buffers/" + filename,
+        "assignment13_pipeline_binaries_cache/" + filename,
+        "assignment14_subgroup_arithmetic_reduction/" + filename,
+        "assignment15_ray_queries_inline/" + filename,
+        "assignment16_gpu_driven_draw_indirect_count/" + filename,
+        "assignment17_shader_objects/" + filename,
+        "assignment18_hardware_ray_tracing_pipeline/" + filename,
+        "assignment19_variable_rate_shading/" + filename,
+        "assignment20_sparse_virtual_texturing/" + filename,
+        "assignment21_bindless_texturing/" + filename,
+        "assignment22_async_compute_transfer_overlap/" + filename,
+        "assignment23_conditional_rendering_occlusion_queries/" + filename,
+        "assignment24_dynamic_rendering_msaa_resolve/" + filename,
+        "assignment25_clustered_forward_lighting/" + filename,
+        "assignment26_device_generated_commands/" + filename,
+        "assignment27_extended_dynamic_state3/" + filename,
+        "assignment28_calibrated_timestamps_gpu_profiling/" + filename,
+        "assignment29_host_image_copy/" + filename,
+        "assignment30_mesh_shading_culling_lod/" + filename,
+        "assignment31_maintenance5_maintenance6/" + filename,
+        "assignment32_opacity_micromaps/" + filename,
+        "assignment33_subgroup_partitioned_quad/" + filename,
+        "assignment34_dynamic_rendering_suspend_resume/" + filename,
+        "assignment35_shader_execution_reordering/" + filename,
+        "assignment36_ray_tracing_motion_blur/" + filename,
+        "assignment37_cooperative_matrix/" + filename,
+        "assignment38_vulkan_memory_model/" + filename,
+        "assignment39_displacement_micromaps/" + filename,
+        "assignment40_dynamic_rendering_unused_attachments/" + filename,
+        "assignment41_multiview_stereo_vr/" + filename,
+        "assignment42_custom_border_color_sampler/" + filename,
+        "assignment43_cluster_acceleration_structure/" + filename,
+        "assignment44_external_memory_interop/" + filename,
+        "assignment45_pipeline_robustness_fault_tolerance/" + filename,
+        "assignment46_push_descriptors/" + filename,
+        "assignment47_multiview_mesh_shading/" + filename,
+        "assignment48_timeline_semaphore_batch_graph/" + filename,
+        "assignment49_low_latency_swapchain_timing/" + filename,
+        "assignment50_ray_tracing_callable_shaders/" + filename,
+        "assignment51_dma_sparse_residency_streaming/" + filename,
+        "assignment52_cooperative_vector_tensor_filtering/" + filename,
+        "assignment53_ray_tracing_position_fetch/" + filename,
+        "assignment54_device_diagnostic_checkpoints/" + filename,
+        "assignment55_saliency_shading_rate_maps/" + filename,
+        "assignment56_dgc_token_multi_pipeline_draws/" + filename,
+        "assignment57_hdr_color_space_metadata/" + filename,
+        "assignment58_vulkan_video_hardware_decode/" + filename,
+        "assignment59_memory_model_queue_transfers/" + filename,
+        "assignment60_indirect_ray_tracing_dispatch/" + filename,
+        "assignment61_ray_tracing_motion_blur_matrices/" + filename,
+        "assignment62_subgroup_cluster_operations/" + filename,
+        "assignment63_multi_draw_indirect_draw_parameters/" + filename,
+        "assignment64_present_timing_frame_pacing/" + filename,
+        "assignment65_async_compute_physics_graphics/" + filename,
+        "assignment66_rasterization_order_subpass_shading/" + filename,
+        "assignment67_mesh_shading_multi_topologies/" + filename,
+        "assignment68_custom_gpu_memory_allocator/" + filename,
+        "assignment69_acceleration_structure_compaction_serialization/" + filename,
+        "assignment70_autonomous_gpu_driven_engine/" + filename
+    };
+
+    for (const auto& path : candidates) {
+        std::ifstream file(path, std::ios::ate | std::ios::binary);
+        if (file.is_open()) {
+            size_t fileSize = (size_t)file.tellg();
+            std::vector<char> buffer(fileSize);
+            file.seekg(0);
+            file.read(buffer.data(), fileSize);
+            file.close();
+            return buffer;
+        }
     }
-    size_t fileSize = (size_t)file.tellg();
-    std::vector<char> buffer(fileSize);
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-    file.close();
-    return buffer;
+    throw std::runtime_error("Failed to open shader file: " + filename);
 }
 
 // Create Shader Module

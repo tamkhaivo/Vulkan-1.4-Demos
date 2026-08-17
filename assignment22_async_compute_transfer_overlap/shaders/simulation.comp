@@ -15,6 +15,12 @@ layout(push_constant) uniform PushConstants {
     uint particleCount;
 } pc;
 
+float hash(uint n) {
+    n = (n << 13U) ^ n;
+    n = n * (n * n * 15731U + 789221U) + 1376312589U;
+    return float(n & uint(0x7fffffffU)) / float(0x7fffffff);
+}
+
 void main() {
     uint index = gl_GlobalInvocationID.x;
     if (index >= pc.particleCount) return;
@@ -22,15 +28,25 @@ void main() {
     vec4 pos = positions[index];
     vec4 vel = velocities[index];
 
-    // Simple gravity & motion integration
-    vel.y -= 9.8 * pc.dt;
+    // Gravity & motion integration
+    vel.y -= 4.5 * pc.dt;
     pos.xyz += vel.xyz * pc.dt;
 
-    if (pos.y < -5.0) {
-        pos.y = 5.0;
-        vel.y = 0.0;
+    // Respawn particle at base when it drops below floor or life expires
+    if (pos.y < -0.5 || length(pos.xz) > 6.0) {
+        float h1 = hash(index * 13U + 1U);
+        float h2 = hash(index * 37U + 7U);
+        float h3 = hash(index * 73U + 19U);
+        
+        float angle = h1 * 6.28318530718;
+        float speed = 2.5 + h2 * 4.0;
+        float spread = 0.25 + h3 * 0.25;
+        
+        pos = vec4(cos(angle) * (h3 * 0.4), 0.0, sin(angle) * (h3 * 0.4), 1.0);
+        vel = vec4(cos(angle) * speed * spread, speed * 1.4, sin(angle) * speed * spread, 0.0);
     }
 
     positions[index] = pos;
     velocities[index] = vel;
 }
+

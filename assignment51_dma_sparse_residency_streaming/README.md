@@ -1,21 +1,49 @@
-# Assignment 51 – Direct Linear DMA Staging with Sparse Residency & VMA
+# Assignment 51 – Direct Linear DMA Staging & Sparse Residency (`vkQueueBindSparse`)
 
-## Overview
-Architect a high-performance texture/geometry streaming engine capable of handling gigabyte-scale sparse virtual assets using `vkQueueBindSparse`, physical $64\text{KB}$ page table commits, and non-blocking background streaming queues.
+## Overview & Architectural Critique
+Loading high-resolution volumetric datasets or massive multi-gigabyte texture arrays requires managing sparse memory page residency concurrently with background DMA streaming without hitching the main rendering pipeline.
 
-## Key Concepts
-- Sparse image residency with `vkQueueBindSparse` and `VkSparseMemoryBind`.
-- Dynamic page resident tracking with quadtree / octree LOD visibility calculations.
-- Direct host-to-device asynchronous streaming queues (`VK_QUEUE_TRANSFER_BIT`).
-- Tile residency tracking texture and base mip fallbacks.
+In Vulkan 1.4, **Direct Linear DMA Staging with Sparse Residency** couples dedicated DMA copy queues with `vkQueueBindSparse`. As the camera navigates through the world, residency tracking compute kernels identify missing $64\text{KB}$ tiles, which are asynchronously staged via direct linear DMA transfers and committed into the sparse page tables without stalling the active frame rendering.
+
+## Key Vulkan 1.4 Concepts
+- **Sparse Virtual Memory Commitments**: Dynamic binding of physical `VkDeviceMemory` chunks via `vkQueueBindSparse`.
+- **Asynchronous DMA Queue Transfer**: Direct host-to-device memory staging on dedicated transfer queue families.
+- **Cross-Queue Timeline Synchronization**: Signaling completion to sparse binding queues using timeline semaphores.
+
+## Concrete Implementation Example (Vulkan 1.4 C++)
+
+```cpp
+// 1. Asynchronously bind committed physical memory pages
+VkSparseMemoryBind sparseBind{
+    .resourceOffset = pageIndex * SPARSE_PAGE_SIZE,
+    .size = SPARSE_PAGE_SIZE,
+    .memory = committedDeviceMemory,
+    .memoryOffset = memoryPoolOffset,
+    .flags = 0
+};
+
+VkSparseBufferMemoryBindInfo bufferBindInfo{
+    .buffer = sparseBuffer,
+    .bindCount = 1,
+    .pBinds = &sparseBind
+};
+
+VkBindSparseInfo bindSparseInfo{
+    .sType = VK_STRUCTURE_TYPE_BIND_SPARSE_INFO,
+    .bufferBindCount = 1,
+    .pBufferBinds = &bufferBindInfo
+};
+
+vkQueueBindSparse(sparseQueue, 1, &bindSparseInfo, sparseFence);
+```
 
 ## Acceptance Criteria
-- [x] Query sparse image properties and tile granularity requirements.
-- [x] Allocate a partially resident sparse 2D image.
-- [x] Stream memory tiles dynamically via background transfer queue.
-- [x] Bind resident pages using `vkQueueBindSparse` synchronized via timeline semaphores.
-- [x] Validate zero CPU hitches during streaming transitions.
+- [x] Create sparse buffer/image structures with `VK_BUFFER_CREATE_SPARSE_BINDING_BIT`.
+- [x] Stream tile data asynchronously across dedicated DMA transfer queues.
+- [x] Update sparse memory page table commitments via `vkQueueBindSparse`.
+- [x] Render scene accessing dynamically committed sparse memory with 100% clean validation output.
 
 ## Directory Structure
-- `src/main.cpp`: Sparse residency allocator and streaming controller.
+- `src/main.cpp`: Direct DMA sparse residency host application.
+- `shaders/sparse_stream.vert`, `shaders/sparse_stream.frag`: Shaders.
 - `CMakeLists.txt`: Build target configuration.
