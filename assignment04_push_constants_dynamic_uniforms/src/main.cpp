@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 4: Push Constants and Dynamic Uniform Buffers
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // ============================================================================
@@ -730,7 +730,15 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
 
         // STEP 12: Render Loop
+        
+        // Initialize Flame Graph Profiler for assignment04_push_constants_dynamic_uniforms
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment04_push_constants_dynamic_uniforms");
+        profiler.initGpu(device, physicalDevice);
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment04_push_constants_dynamic_uniforms");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -953,6 +961,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment04_push_constants_dynamic_uniforms.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment04_push_constants_dynamic_uniforms.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment04_push_constants_dynamic_uniforms.json");
+        profiler.cleanupGpu();
+
 
         // STEP 13: Cleanup Resources
         vkUnmapMemory(device, dynamicMaterialBufferMemory);

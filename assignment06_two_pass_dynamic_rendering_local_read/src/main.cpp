@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 6: Two-Pass Effect with Dynamic Rendering Local Reads
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -814,7 +814,15 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
 
         // STEP 13: Render Loop
+        
+        // Initialize Flame Graph Profiler for assignment06_two_pass_dynamic_rendering_local_read
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment06_two_pass_dynamic_rendering_local_read");
+        profiler.initGpu(device, physicalDevice);
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment06_two_pass_dynamic_rendering_local_read");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -1054,6 +1062,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment06_two_pass_dynamic_rendering_local_read.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment06_two_pass_dynamic_rendering_local_read.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment06_two_pass_dynamic_rendering_local_read.json");
+        profiler.cleanupGpu();
+
 
         // STEP 14: Cleanup Resources
         vkUnmapMemory(device, sceneUBOBufferMemory);

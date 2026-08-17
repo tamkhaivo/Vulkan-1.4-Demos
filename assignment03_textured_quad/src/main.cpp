@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 3: Textured Quad with Sampler
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // ============================================================================
@@ -711,7 +711,15 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
 
         // STEP 12: Render Loop
+        
+        // Initialize Flame Graph Profiler for assignment03_textured_quad
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment03_textured_quad");
+        profiler.initGpu(device, physicalDevice);
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment03_textured_quad");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -836,6 +844,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment03_textured_quad.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment03_textured_quad.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment03_textured_quad.json");
+        profiler.cleanupGpu();
+
 
         // STEP 13: Cleanup Resources
         vkDestroySampler(device, textureSampler, nullptr);

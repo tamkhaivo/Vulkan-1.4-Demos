@@ -14,6 +14,7 @@
 #include <cstring>
 #include <optional>
 #include <string>
+#include "vulkan_flame_graph.hpp"
 
 namespace vk_common {
 

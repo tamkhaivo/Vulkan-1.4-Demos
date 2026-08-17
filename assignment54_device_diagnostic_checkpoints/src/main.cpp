@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 54: Device Diagnostic Checkpoints & Fault Recovery (VK_NV_device_diagnostic_checkpoints)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -408,7 +408,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment54_device_diagnostic_checkpoints
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment54_device_diagnostic_checkpoints");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment54_device_diagnostic_checkpoints");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -547,6 +556,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment54_device_diagnostic_checkpoints.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment54_device_diagnostic_checkpoints.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment54_device_diagnostic_checkpoints.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

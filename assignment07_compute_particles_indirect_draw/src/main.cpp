@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 7: Compute Particle System with Indirect Draw
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -591,7 +591,15 @@ int main() {
         auto lastFrameTime = startTime;
 
         // STEP 10: Simulation & Render Loop
+        
+        // Initialize Flame Graph Profiler for assignment07_compute_particles_indirect_draw
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment07_compute_particles_indirect_draw");
+        profiler.initGpu(device, physicalDevice);
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment07_compute_particles_indirect_draw");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -781,6 +789,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment07_compute_particles_indirect_draw.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment07_compute_particles_indirect_draw.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment07_compute_particles_indirect_draw.json");
+        profiler.cleanupGpu();
+
 
         // STEP 11: Cleanup Resources
         vkUnmapMemory(device, sceneUBOBufferMemory);

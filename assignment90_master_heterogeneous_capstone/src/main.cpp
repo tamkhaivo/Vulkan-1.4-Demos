@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 90: Master Autonomous Vulkan 1.4 Heterogeneous Mega-Engine Capstone II
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Synthesis of:
@@ -406,7 +406,14 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         int frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment90_master_heterogeneous_capstone
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment90_master_heterogeneous_capstone");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment90_master_heterogeneous_capstone");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -532,6 +539,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment90_master_heterogeneous_capstone.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment90_master_heterogeneous_capstone.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment90_master_heterogeneous_capstone.json");
+        profiler.cleanupGpu();
+
 
         vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

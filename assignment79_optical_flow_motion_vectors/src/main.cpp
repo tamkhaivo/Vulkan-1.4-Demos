@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 79: Hardware Optical Flow & Motion Vector Estimation (VK_NV_optical_flow)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -429,7 +429,14 @@ int main() {
         uint64_t frameCount = 0;
         vk_math::Mat4 prevMVP = vk_math::Mat4::identity();
 
+        
+        // Initialize Flame Graph Profiler for assignment79_optical_flow_motion_vectors
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment79_optical_flow_motion_vectors");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment79_optical_flow_motion_vectors");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -564,6 +571,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment79_optical_flow_motion_vectors.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment79_optical_flow_motion_vectors.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment79_optical_flow_motion_vectors.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

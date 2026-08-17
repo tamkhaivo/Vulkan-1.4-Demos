@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 37: Cooperative Matrix & Neural Super-Resolution (VK_KHR_cooperative_matrix)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -412,7 +412,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment37_cooperative_matrix
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment37_cooperative_matrix");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment37_cooperative_matrix");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -551,6 +560,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment37_cooperative_matrix.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment37_cooperative_matrix.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment37_cooperative_matrix.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

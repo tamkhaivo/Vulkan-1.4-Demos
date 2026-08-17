@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 27: Extended Dynamic State 3 & Dynamic Pipelines
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -446,7 +446,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment27_extended_dynamic_state3
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment27_extended_dynamic_state3");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment27_extended_dynamic_state3");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -614,6 +623,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment27_extended_dynamic_state3.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment27_extended_dynamic_state3.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment27_extended_dynamic_state3.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

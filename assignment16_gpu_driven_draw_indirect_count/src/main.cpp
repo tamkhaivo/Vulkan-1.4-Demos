@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 16: GPU-Driven Scene Culling & Multi-Draw Indirect Count
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -894,7 +894,15 @@ int main() {
         uint64_t frameIndex = 0;
 
         // STEP 13: Render Loop
+        
+        // Initialize Flame Graph Profiler for assignment16_gpu_driven_draw_indirect_count
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment16_gpu_driven_draw_indirect_count");
+        profiler.initGpu(device, physicalDevice);
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment16_gpu_driven_draw_indirect_count");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -1147,6 +1155,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment16_gpu_driven_draw_indirect_count.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment16_gpu_driven_draw_indirect_count.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment16_gpu_driven_draw_indirect_count.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 67: Mesh Shading Multi-Topologies & Multi-Resolution Meshlets (VK_EXT_mesh_shader)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -408,7 +408,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment67_mesh_shading_multi_topologies
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment67_mesh_shading_multi_topologies");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment67_mesh_shading_multi_topologies");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -547,6 +556,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment67_mesh_shading_multi_topologies.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment67_mesh_shading_multi_topologies.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment67_mesh_shading_multi_topologies.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

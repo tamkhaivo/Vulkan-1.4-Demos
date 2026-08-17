@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 80: The Ultimate Autonomous Vulkan 1.4 Unified Mega-Engine Capstone
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Synthesis of:
@@ -456,7 +456,14 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment80_ultimate_mega_engine_capstone
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment80_ultimate_mega_engine_capstone");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment80_ultimate_mega_engine_capstone");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -585,6 +592,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment80_ultimate_mega_engine_capstone.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment80_ultimate_mega_engine_capstone.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment80_ultimate_mega_engine_capstone.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

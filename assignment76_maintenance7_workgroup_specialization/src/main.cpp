@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 76: Maintenance 7 Dynamic Workgroup Specialization (VK_KHR_maintenance7)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -445,7 +445,14 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment76_maintenance7_workgroup_specialization
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment76_maintenance7_workgroup_specialization");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment76_maintenance7_workgroup_specialization");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -581,6 +588,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment76_maintenance7_workgroup_specialization.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment76_maintenance7_workgroup_specialization.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment76_maintenance7_workgroup_specialization.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

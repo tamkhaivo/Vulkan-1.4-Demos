@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 11: Modern Mesh & Task Shading Pipeline (VK_EXT_mesh_shader)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -423,7 +423,16 @@ int main() {
         uint32_t currentFrame = 0;
         int renderedFrames = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment11_mesh_task_shading
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment11_mesh_task_shading");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment11_mesh_task_shading");
             glfwPollEvents();
             if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
                 glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -573,6 +582,12 @@ int main() {
         std::cout << "[Status] Successfully rendered " << renderedFrames << " frames via VK_EXT_mesh_shader task & mesh pipeline.\n";
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment11_mesh_task_shading.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment11_mesh_task_shading.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment11_mesh_task_shading.json");
+        profiler.cleanupGpu();
+
 
         // STEP 8: Resource Cleanup
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {

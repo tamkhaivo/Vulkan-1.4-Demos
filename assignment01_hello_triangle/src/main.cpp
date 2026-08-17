@@ -237,105 +237,153 @@ int main() {
 
         std::cout << "Vulkan 1.4 setup successful. Entering render loop..." << std::endl;
 
+        // Initialize Flame Graph Profiler for Assignment 1
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("Assignment01_HelloTriangle");
+        profiler.initGpu(device, physical_device);
+
+        int frameCounter = 0;
+
         // STEP 13: Render Loop
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("Frame");
             glfwPollEvents();
 
-            vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
-            vkResetFences(device, 1, &fence);
+            {
+                VK_PROFILE_SCOPE("CPU_WaitFences");
+                vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+                vkResetFences(device, 1, &fence);
+            }
 
             uint32_t imageIndex;
-            vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+            {
+                VK_PROFILE_SCOPE("AcquireNextImage");
+                vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+            }
 
-            vkResetCommandBuffer(commandBuffer, 0);
-            VkCommandBufferBeginInfo beginInfo{};
-            beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-            vkBeginCommandBuffer(commandBuffer, &beginInfo);
+            {
+                VK_PROFILE_SCOPE("RecordCommandBuffer");
+                vkResetCommandBuffer(commandBuffer, 0);
+                VkCommandBufferBeginInfo beginInfo{};
+                beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+                vkBeginCommandBuffer(commandBuffer, &beginInfo);
 
-            // Vulkan 1.4 Synchronization2 Barrier
-            vulkan_utils::pipelineBarrier2ImageTransition(
-                commandBuffer,
-                vk14.vkCmdPipelineBarrier2,
-                swapchainImages[imageIndex],
-                VK_IMAGE_LAYOUT_UNDEFINED,
-                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-                VK_ACCESS_2_NONE,
-                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT
-            );
+                profiler.resetGpuFrame(commandBuffer);
 
-            // Dynamic Rendering Pass
-            VkRenderingAttachmentInfo colorAttachment{};
-            colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
-            colorAttachment.imageView = swapchainImageViews[imageIndex];
-            colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-            colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-            colorAttachment.clearValue.color = {{0.1f, 0.1f, 0.15f, 1.0f}};
+                // Vulkan 1.4 Synchronization2 Barrier
+                {
+                    VK_GPU_PROFILE_SCOPE(commandBuffer, "Layout_Transition_To_Color");
+                    vulkan_utils::pipelineBarrier2ImageTransition(
+                        commandBuffer,
+                        vk14.vkCmdPipelineBarrier2,
+                        swapchainImages[imageIndex],
+                        VK_IMAGE_LAYOUT_UNDEFINED,
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+                        VK_ACCESS_2_NONE,
+                        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT
+                    );
+                }
 
-            VkRenderingInfo renderingInfo{};
-            renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
-            renderingInfo.renderArea = {{0, 0}, {WIDTH, HEIGHT}};
-            renderingInfo.layerCount = 1;
-            renderingInfo.colorAttachmentCount = 1;
-            renderingInfo.pColorAttachments = &colorAttachment;
+                // Dynamic Rendering Pass
+                VkRenderingAttachmentInfo colorAttachment{};
+                colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+                colorAttachment.imageView = swapchainImageViews[imageIndex];
+                colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+                colorAttachment.clearValue.color = {{0.1f, 0.1f, 0.15f, 1.0f}};
 
-            vk14.vkCmdBeginRendering(commandBuffer, &renderingInfo);
-            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+                VkRenderingInfo renderingInfo{};
+                renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+                renderingInfo.renderArea = {{0, 0}, {WIDTH, HEIGHT}};
+                renderingInfo.layerCount = 1;
+                renderingInfo.colorAttachmentCount = 1;
+                renderingInfo.pColorAttachments = &colorAttachment;
 
-            VkViewport viewport{0.0f, 0.0f, static_cast<float>(WIDTH), static_cast<float>(HEIGHT), 0.0f, 1.0f};
-            VkRect2D scissor{{0, 0}, {WIDTH, HEIGHT}};
-            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+                {
+                    VK_GPU_PROFILE_SCOPE(commandBuffer, "DynamicRendering_TriangleDraw");
+                    vk14.vkCmdBeginRendering(commandBuffer, &renderingInfo);
+                    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-            vk14.vkCmdEndRendering(commandBuffer);
+                    VkViewport viewport{0.0f, 0.0f, static_cast<float>(WIDTH), static_cast<float>(HEIGHT), 0.0f, 1.0f};
+                    VkRect2D scissor{{0, 0}, {WIDTH, HEIGHT}};
+                    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+                    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-            vulkan_utils::pipelineBarrier2ImageTransition(
-                commandBuffer,
-                vk14.vkCmdPipelineBarrier2,
-                swapchainImages[imageIndex],
-                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-                VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
-                VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
-                VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
-                VK_ACCESS_2_NONE
-            );
+                    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+                    vk14.vkCmdEndRendering(commandBuffer);
+                }
 
-            vkEndCommandBuffer(commandBuffer);
+                {
+                    VK_GPU_PROFILE_SCOPE(commandBuffer, "Layout_Transition_To_Present");
+                    vulkan_utils::pipelineBarrier2ImageTransition(
+                        commandBuffer,
+                        vk14.vkCmdPipelineBarrier2,
+                        swapchainImages[imageIndex],
+                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                        VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+                        VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT,
+                        VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT,
+                        VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+                        VK_ACCESS_2_NONE
+                    );
+                }
 
-            VkSubmitInfo submitInfo{};
-            submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-            VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};
-            VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-            submitInfo.waitSemaphoreCount = 1;
-            submitInfo.pWaitSemaphores = waitSemaphores;
-            submitInfo.pWaitDstStageMask = waitStages;
-            submitInfo.commandBufferCount = 1;
-            submitInfo.pCommandBuffers = &commandBuffer;
+                vkEndCommandBuffer(commandBuffer);
+            }
 
-            VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
-            submitInfo.signalSemaphoreCount = 1;
-            submitInfo.pSignalSemaphores = signalSemaphores;
+            {
+                VK_PROFILE_SCOPE("QueueSubmit");
+                VkSubmitInfo submitInfo{};
+                submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+                VkSemaphore waitSemaphores[] = {imageAvailableSemaphore};
+                VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+                submitInfo.waitSemaphoreCount = 1;
+                submitInfo.pWaitSemaphores = waitSemaphores;
+                submitInfo.pWaitDstStageMask = waitStages;
+                submitInfo.commandBufferCount = 1;
+                submitInfo.pCommandBuffers = &commandBuffer;
 
-            vkQueueSubmit(graphicsQueue, 1, &submitInfo, fence);
+                VkSemaphore signalSemaphores[] = {renderFinishedSemaphore};
+                submitInfo.signalSemaphoreCount = 1;
+                submitInfo.pSignalSemaphores = signalSemaphores;
 
-            VkPresentInfoKHR presentInfo{};
-            presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-            presentInfo.waitSemaphoreCount = 1;
-            presentInfo.pWaitSemaphores = signalSemaphores;
-            presentInfo.swapchainCount = 1;
-            presentInfo.pSwapchains = &swapchain;
-            presentInfo.pImageIndices = &imageIndex;
+                vkQueueSubmit(graphicsQueue, 1, &submitInfo, fence);
+            }
 
-            vkQueuePresentKHR(graphicsQueue, &presentInfo);
+            {
+                VK_PROFILE_SCOPE("QueuePresent");
+                VkPresentInfoKHR presentInfo{};
+                presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+                presentInfo.waitSemaphoreCount = 1;
+                presentInfo.pWaitSemaphores = &renderFinishedSemaphore;
+                presentInfo.swapchainCount = 1;
+                presentInfo.pSwapchains = &swapchain;
+                presentInfo.pImageIndices = &imageIndex;
+
+                vkQueuePresentKHR(graphicsQueue, &presentInfo);
+            }
+
+            if (++frameCounter % 60 == 0) {
+                vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+                profiler.resolveGpuResults();
+            }
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+
+        // Export Flame Graph Visualizer and Folded Traces
+        std::cout << "\n[Flame Graph] Exporting profiling telemetry...\n";
+        profiler.exportFoldedFile("flamegraph_assignment01.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment01.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment01.json");
+        std::cout << "[Flame Graph] Saved flamegraph_assignment01.html, flamegraph_assignment01.folded, and flamegraph_assignment01.json\n";
 
         // STEP 14: Cleanup
+        profiler.cleanupGpu();
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
         vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
         vkDestroyFence(device, fence, nullptr);

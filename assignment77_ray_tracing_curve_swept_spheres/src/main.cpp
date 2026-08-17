@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 77: Ray Tracing Swept Spheres & Curve Primitives (VK_NV_ray_tracing_linear_swept_spheres)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -451,7 +451,14 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment77_ray_tracing_curve_swept_spheres
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment77_ray_tracing_curve_swept_spheres");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment77_ray_tracing_curve_swept_spheres");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -594,6 +601,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment77_ray_tracing_curve_swept_spheres.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment77_ray_tracing_curve_swept_spheres.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment77_ray_tracing_curve_swept_spheres.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

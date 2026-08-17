@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 49: Low Latency Swapchain Timing & Latency Sleep (VK_NV_low_latency2)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -389,7 +389,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment49_low_latency_swapchain_timing
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment49_low_latency_swapchain_timing");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment49_low_latency_swapchain_timing");
             // 1. Simulation Start: poll user input
             glfwPollEvents();
 
@@ -530,6 +539,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment49_low_latency_swapchain_timing.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment49_low_latency_swapchain_timing.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment49_low_latency_swapchain_timing.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

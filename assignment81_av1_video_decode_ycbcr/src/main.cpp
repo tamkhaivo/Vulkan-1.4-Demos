@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 81: Zero-Copy AV1 Hardware Video Decoding & YCbCr Sampler Feedback
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -400,7 +400,14 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         int frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment81_av1_video_decode_ycbcr
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment81_av1_video_decode_ycbcr");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment81_av1_video_decode_ycbcr");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -529,6 +536,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment81_av1_video_decode_ycbcr.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment81_av1_video_decode_ycbcr.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment81_av1_video_decode_ycbcr.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);

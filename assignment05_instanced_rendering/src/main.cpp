@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 5: Instanced Rendering with Vertex Attribute Divisor
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -806,7 +806,15 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
 
         // STEP 13: Render Loop
+        
+        // Initialize Flame Graph Profiler for assignment05_instanced_rendering
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment05_instanced_rendering");
+        profiler.initGpu(device, physicalDevice);
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment05_instanced_rendering");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -1003,6 +1011,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment05_instanced_rendering.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment05_instanced_rendering.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment05_instanced_rendering.json");
+        profiler.cleanupGpu();
+
 
         // STEP 14: Cleanup Resources
         vkUnmapMemory(device, sceneUBOBufferMemory);

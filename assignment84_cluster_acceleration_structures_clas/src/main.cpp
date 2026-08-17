@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 84: Clustered Acceleration Structures (CLAS) for Micro-Meshes
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -424,7 +424,14 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         int frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment84_cluster_acceleration_structures_clas
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment84_cluster_acceleration_structures_clas");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment84_cluster_acceleration_structures_clas");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -552,6 +559,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment84_cluster_acceleration_structures_clas.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment84_cluster_acceleration_structures_clas.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment84_cluster_acceleration_structures_clas.json");
+        profiler.cleanupGpu();
+
 
         vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

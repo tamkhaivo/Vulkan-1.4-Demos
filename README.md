@@ -167,11 +167,37 @@ https://docs.vulkan.org/tutorial/latest/00_Introduction.html
   - Dense screen-space 2D velocity fields, temporal reprojection delta tracking, and chromatic HSV motion field visualization.
 - `assignment80_ultimate_mega_engine_capstone/`: **Assignment 80 – The Ultimate Autonomous Vulkan 1.4 Unified Mega-Engine Capstone**
   - Master synthesis: 64-bit BDA descriptorless geometry, Synchronization2 pipeline hazard barriers, Dynamic Rendering multi-light PBR forward shading, and zero-CPU descriptor pool binding.
+- `assignment81_av1_video_decode_ycbcr/`: **Assignment 81 – Zero-Copy AV1 Hardware Video Decoding & YCbCr Sampler Feedback (`VK_KHR_video_decode_av1`)**
+  - Direct hardware bitstream decoding into GPU memory with zero CPU readbacks and `VkSamplerYcbcrConversion` dynamic shader feedback.
+- `assignment82_subgroup_matrix_tensor_filtering/`: **Assignment 82 – Sub-Group Matrix Tensor Convolutions & Direct Neural Filtering (`VK_KHR_cooperative_matrix`)**
+  - Wave-level FP16 MMA cooperative matrix operations (`coopMatMulAdd`) performing 16x16 tile neural filtering.
+- `assignment83_dynamic_foveated_vrs/`: **Assignment 83 – Dynamic Fragment Density Maps & Eye-Tracked Foveated Shading (`VK_KHR_fragment_shading_rate`)**
+  - Dynamic attachment-driven VRS density maps and real-time foveated gaze-point rate adjustment.
+- `assignment84_cluster_acceleration_structures_clas/`: **Assignment 84 – Clustered Level Acceleration Structures (CLAS) for Micro-Mesh BVH Compaction (`VK_NV_cluster_acceleration_structure`)**
+  - Cluster-level acceleration structures beneath BLAS for microsecond GPU dynamic LOD rebuilds and BVH compaction.
+- `assignment85_device_fault_telemetry_triage/`: **Assignment 85 – Direct GPU Memory Fault Triage & Page-Fault Telemetry (`VK_EXT_device_fault`)**
+  - Post-mortem address register triage and fault telemetry catching invalid pointer chasing and unmapped BDA addresses.
+- `assignment86_sparse_virtual_megatexturing/`: **Assignment 86 – Sparse Dynamic Multi-Layer Virtual Megatexturing with Residency Feedback (`sparseResidencyImage2D`)**
+  - Multi-gigabyte sparse texture streaming with residency byte feedback and asynchronous DMA tile commits.
+- `assignment87_raster_order_attachment_oit/`: **Assignment 87 – Fine-Grained Programmable Raster Order Attachment Access & Lock-Free OIT (`VK_EXT_rasterization_order_attachment_access`)**
+  - In-order dynamic fragment shader read-modify-write without subpass barriers for deterministic Order-Independent Transparency.
+- `assignment88_async_physics_direct_meshlet/`: **Assignment 88 – Dynamic Multi-Queue Async Physics & Compute-to-Direct-Meshlet Stream**
+  - Asynchronous compute physics pipeline directly streaming vertex/meshlet buffers to graphics mesh shaders with timeline semaphores.
+- `assignment89_host_image_copy_rebar_blit/`: **Assignment 89 – Direct Host Memory Image Blits & ReBAR Zero-Copy Texture Streaming (`VK_EXT_host_image_copy`)**
+  - Direct host-to-device image blits over PCIe ReBAR without intermediate staging buffers or command submissions.
+- `assignment90_master_heterogeneous_capstone/`: **Assignment 90 – Master Autonomous Heterogeneous Engine Capstone II**
+  - The ultimate synthesis: 64-bit BDA raw pointer geometry, dynamic multi-light PBR shading, Synchronization2 pipeline hazard barriers, and Dynamic Rendering with zero CPU descriptor pool contention.
 
+## Modern Vulkan 1.4 Architecture & Mental Model
+
+Vulkan 1.4 transforms the developer experience by moving away from legacy static configurations ("Static Juggling") to a dynamic, pointer-centric architecture:
+1. **Dynamic Rendering as Standard**: Complete elimination of legacy `VkRenderPass` and `VkFramebuffer` boilerplate in favor of inline `vkCmdBeginRendering` / `vkCmdEndRendering`.
+2. **Buffer Device Address (BDA) & Bindless**: Raw 64-bit GPU virtual memory pointers passed via push constants, replacing slot-based descriptor sets.
+3. **Descriptor Heaps & Buffers**: Treat descriptors as data blobs directly in GPU memory or command streams (`VK_KHR_push_descriptor`, `VK_EXT_descriptor_buffer`, Descriptor Heaps).
+4. **Monotonic Synchronization**: Timeline Semaphores (`VkSemaphoreTypeCreateInfo`) and Synchronization2 (`VkPipelineBarrier2`, `VkDependencyInfo`) providing simple 64-bit counter progress tracking.
+5. **Unified Layouts & C++ Defaults**: Standardized use of performant `VK_IMAGE_LAYOUT_GENERAL` where appropriate and designated `sType`/`pNext` structure defaulting in C++.
 
 ## Build Instructions (Clang 17+ & Vulkan 1.4 Standard)
-
-
 
 ### 1. Configure with Clang Toolset & Vulkan 1.4 SDK:
 ```powershell
@@ -187,4 +213,5 @@ cmake --build build --target assignment01_hello_triangle --config Debug
 ```powershell
 .\build\bin\Debug\assignment01_hello_triangle.exe
 ```
+
 

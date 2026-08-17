@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 17: Next-Gen Pipeline Flexibility with Shader Objects
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -654,7 +654,15 @@ int main() {
         uint32_t renderedFrames = 0;
 
         // STEP 10: Render Loop (Dynamic Multi-Object Push Constant Rendering)
+        
+        // Initialize Flame Graph Profiler for assignment17_shader_objects
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment17_shader_objects");
+        profiler.initGpu(device, physicalDevice);
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment17_shader_objects");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
@@ -888,6 +896,12 @@ int main() {
         std::cout << "[Status] Completed rendering " << renderedFrames << " frames." << std::endl;
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment17_shader_objects.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment17_shader_objects.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment17_shader_objects.json");
+        profiler.cleanupGpu();
+
 
         // STEP 11: Cleanup
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {

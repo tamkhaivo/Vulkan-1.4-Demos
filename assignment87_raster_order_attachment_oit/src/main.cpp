@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 87: Programmable Raster Order Attachment Access & Lock-Free OIT
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -431,7 +431,14 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         int frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment87_raster_order_attachment_oit
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment87_raster_order_attachment_oit");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment87_raster_order_attachment_oit");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -559,6 +566,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment87_raster_order_attachment_oit.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment87_raster_order_attachment_oit.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment87_raster_order_attachment_oit.json");
+        profiler.cleanupGpu();
+
 
         vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

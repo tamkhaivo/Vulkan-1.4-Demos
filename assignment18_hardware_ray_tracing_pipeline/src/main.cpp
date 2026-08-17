@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 18: Full Hardware Ray Tracing Pipeline & Shader Binding Tables
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -372,7 +372,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frame = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment18_hardware_ray_tracing_pipeline
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment18_hardware_ray_tracing_pipeline");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment18_hardware_ray_tracing_pipeline");
             glfwPollEvents();
 
             auto currentTime = std::chrono::high_resolution_clock::now();

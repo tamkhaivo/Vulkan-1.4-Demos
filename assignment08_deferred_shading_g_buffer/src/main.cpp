@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 8: Deferred Shading with Multiple Render Targets (MRT)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -981,7 +981,15 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
 
         // STEP 12: Main Render Loop
+        
+        // Initialize Flame Graph Profiler for assignment08_deferred_shading_g_buffer
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment08_deferred_shading_g_buffer");
+        profiler.initGpu(device, physicalDevice);
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment08_deferred_shading_g_buffer");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -1288,6 +1296,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment08_deferred_shading_g_buffer.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment08_deferred_shading_g_buffer.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment08_deferred_shading_g_buffer.json");
+        profiler.cleanupGpu();
+
 
         // STEP 13: Cleanup Resources
         vkUnmapMemory(device, lightUBOBufferMemory);

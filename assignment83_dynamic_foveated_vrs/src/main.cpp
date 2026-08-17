@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 83: Dynamic Fragment Density Maps & Eye-Tracked Foveated Shading
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -419,7 +419,14 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         int frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment83_dynamic_foveated_vrs
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment83_dynamic_foveated_vrs");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment83_dynamic_foveated_vrs");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -551,6 +558,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment83_dynamic_foveated_vrs.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment83_dynamic_foveated_vrs.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment83_dynamic_foveated_vrs.json");
+        profiler.cleanupGpu();
+
 
         vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

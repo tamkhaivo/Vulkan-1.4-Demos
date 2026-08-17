@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 28: Calibrated Timestamps & Hardware Clock Profiling (VK_KHR_calibrated_timestamps)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -427,7 +427,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment28_calibrated_timestamps_gpu_profiling
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment28_calibrated_timestamps_gpu_profiling");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment28_calibrated_timestamps_gpu_profiling");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -593,6 +602,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment28_calibrated_timestamps_gpu_profiling.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment28_calibrated_timestamps_gpu_profiling.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment28_calibrated_timestamps_gpu_profiling.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

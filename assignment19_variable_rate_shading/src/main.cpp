@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 19: Hardware Variable Rate Shading (VRS) & Fragment Density Control
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -948,7 +948,14 @@ int main() {
         uint64_t frameCount = 0;
         uint32_t shadingRateMode = 0; // 0: Attachment Foveated (1x1 center, 2x2 mid, 4x4 edge), 1: 1x1 Global, 2: 2x2 Global, 3: 4x4 Global
 
+        
+        // Initialize Flame Graph Profiler for assignment19_variable_rate_shading
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment19_variable_rate_shading");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < maxFrames) {
+            VK_PROFILE_SCOPE("assignment19_variable_rate_shading");
             glfwPollEvents();
 
             // Wait for fence
@@ -1193,6 +1200,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment19_variable_rate_shading.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment19_variable_rate_shading.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment19_variable_rate_shading.json");
+        profiler.cleanupGpu();
+
 
         // STEP 17: Cleanup Resources
         vkUnmapMemory(device, uniformBufferMemory);

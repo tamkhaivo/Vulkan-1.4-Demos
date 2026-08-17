@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 40: Dynamic Rendering Unused Attachments (VK_EXT_dynamic_rendering_unused_attachments)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -425,7 +425,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment40_dynamic_rendering_unused_attachments
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment40_dynamic_rendering_unused_attachments");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment40_dynamic_rendering_unused_attachments");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -580,6 +589,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment40_dynamic_rendering_unused_attachments.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment40_dynamic_rendering_unused_attachments.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment40_dynamic_rendering_unused_attachments.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

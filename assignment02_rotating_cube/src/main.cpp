@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 2: Rotating Cube with Uniform Buffers
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // ============================================================================
@@ -584,7 +584,15 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
 
         // STEP 10: Render Loop
+        
+        // Initialize Flame Graph Profiler for assignment02_rotating_cube
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment02_rotating_cube");
+        profiler.initGpu(device, physicalDevice);
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment02_rotating_cube");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -735,6 +743,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment02_rotating_cube.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment02_rotating_cube.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment02_rotating_cube.json");
+        profiler.cleanupGpu();
+
 
         // STEP 11: Cleanup Resources
         vkUnmapMemory(device, uniformBufferMemory);

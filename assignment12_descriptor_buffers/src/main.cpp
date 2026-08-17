@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 12: Modern Descriptor Buffers (VK_EXT_descriptor_buffer) & Push Descriptors
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -706,7 +706,16 @@ int main() {
         uint32_t currentFrame = 0;
         int renderedFrames = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment12_descriptor_buffers
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment12_descriptor_buffers");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment12_descriptor_buffers");
             glfwPollEvents();
             if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
                 glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -862,6 +871,12 @@ int main() {
         std::cout << "[Status] Successfully rendered " << renderedFrames << " frames.\n";
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment12_descriptor_buffers.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment12_descriptor_buffers.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment12_descriptor_buffers.json");
+        profiler.cleanupGpu();
+
 
         // STEP 9: Resource Cleanup
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {

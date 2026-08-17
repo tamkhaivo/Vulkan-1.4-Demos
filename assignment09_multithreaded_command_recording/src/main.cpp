@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 9: Multi-Threaded Command Recording with Timeline Semaphores
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -739,7 +739,15 @@ int main() {
         uint64_t currentTimelineValue = 0;
 
         // STEP 13: Multi-Threaded Render Loop
+        
+        // Initialize Flame Graph Profiler for assignment09_multithreaded_command_recording
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment09_multithreaded_command_recording");
+        profiler.initGpu(device, physicalDevice);
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment09_multithreaded_command_recording");
             glfwPollEvents();
 
             // Acquire next image
@@ -1011,6 +1019,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment09_multithreaded_command_recording.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment09_multithreaded_command_recording.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment09_multithreaded_command_recording.json");
+        profiler.cleanupGpu();
+
 
         // STEP 14: Cleanup Resources
         vkUnmapMemory(device, dynamicMaterialBufferMemory);

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 61: Ray Tracing Partitioned Motion & Matrix Blur (VK_NV_ray_tracing_motion_blur)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -418,7 +418,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment61_ray_tracing_motion_blur_matrices
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment61_ray_tracing_motion_blur_matrices");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment61_ray_tracing_motion_blur_matrices");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -558,6 +567,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment61_ray_tracing_motion_blur_matrices.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment61_ray_tracing_motion_blur_matrices.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment61_ray_tracing_motion_blur_matrices.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

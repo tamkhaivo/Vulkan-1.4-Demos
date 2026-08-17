@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 89: Direct Host Memory Image Blits & ReBAR Zero-Copy Texture Streaming
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -396,7 +396,14 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         int frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment89_host_image_copy_rebar_blit
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment89_host_image_copy_rebar_blit");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment89_host_image_copy_rebar_blit");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -523,6 +530,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment89_host_image_copy_rebar_blit.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment89_host_image_copy_rebar_blit.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment89_host_image_copy_rebar_blit.json");
+        profiler.cleanupGpu();
+
 
         vkDestroySemaphore(device, renderFinishedSemaphore, nullptr);
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 52: Cooperative Vector & Tensor Filtering (VK_KHR_cooperative_matrix)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -414,7 +414,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment52_cooperative_vector_tensor_filtering
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment52_cooperative_vector_tensor_filtering");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment52_cooperative_vector_tensor_filtering");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -553,6 +562,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment52_cooperative_vector_tensor_filtering.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment52_cooperative_vector_tensor_filtering.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment52_cooperative_vector_tensor_filtering.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

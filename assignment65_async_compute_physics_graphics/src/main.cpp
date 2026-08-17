@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 65: Async Compute Physics & Graphics Pipeline (VK_KHR_timeline_semaphore)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -423,7 +423,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment65_async_compute_physics_graphics
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment65_async_compute_physics_graphics");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment65_async_compute_physics_graphics");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -562,6 +571,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment65_async_compute_physics_graphics.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment65_async_compute_physics_graphics.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment65_async_compute_physics_graphics.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, physicsTimelineSemaphore, nullptr);

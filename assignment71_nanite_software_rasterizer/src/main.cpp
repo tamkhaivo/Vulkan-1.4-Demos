@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 71: Nanite-Style Micro-Polygon Software Rasterizer via 64-bit Atomics
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -533,7 +533,14 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint32_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment71_nanite_software_rasterizer
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment71_nanite_software_rasterizer");
+        profiler.initGpu(device, physicalDevice);
+
         while (!glfwWindowShouldClose(window) && frameCount < 400) {
+            VK_PROFILE_SCOPE("assignment71_nanite_software_rasterizer");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -703,6 +710,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment71_nanite_software_rasterizer.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment71_nanite_software_rasterizer.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment71_nanite_software_rasterizer.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

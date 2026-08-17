@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 60: Indirect Ray Tracing Dispatch (vkCmdTraceRaysIndirectKHR)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -421,7 +421,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment60_indirect_ray_tracing_dispatch
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment60_indirect_ray_tracing_dispatch");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment60_indirect_ray_tracing_dispatch");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -560,6 +569,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment60_indirect_ray_tracing_dispatch.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment60_indirect_ray_tracing_dispatch.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment60_indirect_ray_tracing_dispatch.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

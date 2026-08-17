@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 23: Hardware GPU Occlusion Queries & Conditional Rendering (Vulkan 1.4)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -413,7 +413,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment23_conditional_rendering_occlusion_queries
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment23_conditional_rendering_occlusion_queries");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment23_conditional_rendering_occlusion_queries");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -562,6 +571,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment23_conditional_rendering_occlusion_queries.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment23_conditional_rendering_occlusion_queries.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment23_conditional_rendering_occlusion_queries.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

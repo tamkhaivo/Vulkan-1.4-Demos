@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 10: Buffer Device Address and Zero-Copy Streaming
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -537,7 +537,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint32_t currentFrame = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment10_buffer_device_address_streaming
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment10_buffer_device_address_streaming");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment10_buffer_device_address_streaming");
             glfwPollEvents();
             if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
                 glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -703,6 +712,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment10_buffer_device_address_streaming.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment10_buffer_device_address_streaming.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment10_buffer_device_address_streaming.json");
+        profiler.cleanupGpu();
+
 
         // STEP 9: Cleanup Resources
         for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; ++i) {

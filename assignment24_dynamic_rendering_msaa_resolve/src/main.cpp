@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 24: Direct Dynamic Rendering Multisampled Resolves & MSAA
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -460,7 +460,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment24_dynamic_rendering_msaa_resolve
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment24_dynamic_rendering_msaa_resolve");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment24_dynamic_rendering_msaa_resolve");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -620,6 +629,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment24_dynamic_rendering_msaa_resolve.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment24_dynamic_rendering_msaa_resolve.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment24_dynamic_rendering_msaa_resolve.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);

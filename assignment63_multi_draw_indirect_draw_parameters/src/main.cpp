@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // Assignment 63: Multi-Draw Indirect with Draw Parameters (VK_KHR_shader_draw_parameters)
 // Standardized for Clang 17+ Compiler & Vulkan 1.4 Specification
 // Concepts:
@@ -415,7 +415,16 @@ int main() {
         auto startTime = std::chrono::high_resolution_clock::now();
         uint64_t frameCount = 0;
 
+        
+        // Initialize Flame Graph Profiler for assignment63_multi_draw_indirect_draw_parameters
+        auto& profiler = vk_profiler::FlameGraphProfiler::get();
+        profiler.setSessionName("assignment63_multi_draw_indirect_draw_parameters");
+        profiler.initGpu(device, physicalDevice);
+
+
+
         while (!glfwWindowShouldClose(window)) {
+            VK_PROFILE_SCOPE("assignment63_multi_draw_indirect_draw_parameters");
             glfwPollEvents();
 
             vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
@@ -555,6 +564,12 @@ int main() {
         }
 
         vkDeviceWaitIdle(device);
+        profiler.resolveGpuResults();
+        profiler.exportFoldedFile("flamegraph_assignment63_multi_draw_indirect_draw_parameters.folded");
+        profiler.exportInteractiveHTML("flamegraph_assignment63_multi_draw_indirect_draw_parameters.html");
+        profiler.exportChromeTraceFile("flamegraph_assignment63_multi_draw_indirect_draw_parameters.json");
+        profiler.cleanupGpu();
+
 
         // Cleanup
         vkDestroySemaphore(device, imageAvailableSemaphore, nullptr);
