@@ -67,6 +67,16 @@ https://docs.vulkan.org/tutorial/latest/00_Introduction.html
   - Direct CPU memory-to-image uploads bypassing staging buffer allocations and command buffer submissions.
 - `assignment30_mesh_shading_culling_lod/`: **Assignment 30 – Mesh Shading Cluster Culling & LOD Morphing (`VK_EXT_mesh_shader`)**
   - Task/amplification shader backface cone culling, frustum sphere culling, and dynamic meshlet LOD morphing.
+- `assignment31_maintenance5_maintenance6/`: **Assignment 31 – Vulkan 1.4 Maintenance 5 & Maintenance 6 (`VK_KHR_maintenance5` / `VK_KHR_maintenance6`)**
+  - Shader staging copies, dynamic index range bounds (`vkCmdBindIndexBuffer2KHR`), and non-zero first index configurations.
+- `assignment32_opacity_micromaps/`: **Assignment 32 – Hardware Ray Tracing Opacity Micromaps (`VK_EXT_opacity_micromap`)**
+  - Hardware micro-opacity arrays built into BLAS to eliminate Any-Hit shader execution stalls and warp divergence for alpha-tested vegetation.
+- `assignment33_subgroup_partitioned_quad/`: **Assignment 33 – Subgroup Advanced Partitioning & Quad Operations (`VK_NV_shader_subgroup_partitioned` / Subgroup Quad)**
+  - `subgroupPartitionNV()` lock-free GPU binning and quad swaps (`subgroupQuadSwapHorizontal`) for analytic screen-space derivatives.
+- `assignment34_dynamic_rendering_suspend_resume/`: **Assignment 34 – Dynamic Rendering Suspend/Resume & Attachment Feedback Loops**
+  - Multi-pass render pass continuation across command buffers (`VK_RENDERING_SUSPENDING_BIT` / `VK_RENDERING_RESUMING_BIT`) and programmable feedback blending (`VK_IMAGE_LAYOUT_ATTACHMENT_FEEDBACK_LOOP_OPTIMAL_EXT`).
+- `assignment35_shader_execution_reordering/`: **Assignment 35 – Shader Execution Reordering (SER) & Position Fetch (`VK_NV_shader_execution_reorder` / `VK_KHR_ray_tracing_position_fetch`)**
+  - Path tracing ray divergence mitigation with `hitObjectNV` / `reorderThreadNV()`, and direct vertex extraction from acceleration structure leaves.
 
 ## Build Instructions (Clang 17+ & Vulkan 1.4 Standard)
 

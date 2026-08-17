@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment34_dynamic_rendering_suspend_resume assignment34_dynamic_rendering_suspend_resume)

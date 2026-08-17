@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment31_maintenance5_maintenance6 assignment31_maintenance5_maintenance6)

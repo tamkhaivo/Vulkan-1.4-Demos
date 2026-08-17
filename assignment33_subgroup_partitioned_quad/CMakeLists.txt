@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment33_subgroup_partitioned_quad assignment33_subgroup_partitioned_quad)

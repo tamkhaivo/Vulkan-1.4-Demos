@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment32_opacity_micromaps assignment32_opacity_micromaps)

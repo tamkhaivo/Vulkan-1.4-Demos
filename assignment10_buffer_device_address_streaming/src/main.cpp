@@ -693,7 +693,11 @@ int main() {
             presentInfo.pSwapchains = &swapchain;
             presentInfo.pImageIndices = &imageIndex;
 
-            vkQueuePresentKHR(graphicsQueue, &presentInfo);
+            VkResult presentResult = vkQueuePresentKHR(graphicsQueue, &presentInfo);
+            if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) {
+                // Swapchain resized or out of date upon window close
+                break;
+            }
 
             currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
         }
