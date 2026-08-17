@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment74_device_fault_bda_telemetry assignment74_device_fault_bda_telemetry)

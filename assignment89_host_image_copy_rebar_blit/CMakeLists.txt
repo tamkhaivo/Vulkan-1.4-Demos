@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment89_host_image_copy_rebar_blit assignment89_host_image_copy_rebar_blit)

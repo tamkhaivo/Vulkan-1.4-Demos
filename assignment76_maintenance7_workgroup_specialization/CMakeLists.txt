@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment76_maintenance7_workgroup_specialization assignment76_maintenance7_workgroup_specialization)

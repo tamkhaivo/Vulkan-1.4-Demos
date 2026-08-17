@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment85_device_fault_telemetry_triage assignment85_device_fault_telemetry_triage)

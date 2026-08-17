@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment83_dynamic_foveated_vrs assignment83_dynamic_foveated_vrs)

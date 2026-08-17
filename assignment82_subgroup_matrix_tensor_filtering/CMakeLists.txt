@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment82_subgroup_matrix_tensor_filtering assignment82_subgroup_matrix_tensor_filtering)

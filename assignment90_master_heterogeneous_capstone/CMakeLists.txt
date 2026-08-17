@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment90_master_heterogeneous_capstone assignment90_master_heterogeneous_capstone)

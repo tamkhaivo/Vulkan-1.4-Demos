@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment79_optical_flow_motion_vectors assignment79_optical_flow_motion_vectors)

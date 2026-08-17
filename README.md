@@ -147,9 +147,30 @@ https://docs.vulkan.org/tutorial/latest/00_Introduction.html
   - Post-build compacted size queries (`VK_QUERY_TYPE_ACCELERATION_STRUCTURE_COMPACTED_SIZE_KHR`), 40%+ BVH memory compaction, and binary disk serialization/reloading.
 - `assignment70_autonomous_gpu_driven_engine/`: **Assignment 70 – Comprehensive Autonomous GPU-Driven Rendering Engine (DGC + Mesh Shaders + Indirect RT + Dynamic Rendering)**
   - Full synthesis: DGC multi-pipeline dispatch, task/mesh shader clusters, inline ray-queried shadows, and zero-CPU draw loop execution.
+- `assignment71_nanite_software_rasterizer/`: **Assignment 71 – Nanite-Style Micro-Polygon Software Rasterizer via 64-bit Atomics (`VK_KHR_shader_atomic_int64` / `VK_EXT_shader_atomic_float2`)**
+  - Compute shader 2D edge-equation software rasterization, 64-bit atomic visibility buffer (`uint64_t(depth << 32 | tri_id)`), and fullscreen dynamic rendering material resolve.
+- `assignment72_low_latency_reflex_pacing/`: **Assignment 72 – Ultra-Low-Latency Reflex Pacing & Input-to-Photon Instrumentation (`VK_NV_low_latency2` / `VK_EXT_present_timing`)**
+  - Fine-grained low latency CPU-GPU pacing markers (`INPUT_SAMPLE`, `SIMULATION_START/END`, `RENDERSUBMIT_START/END`) and dynamic rendering frame pacing.
+- `assignment73_fragment_barycentrics_wireframe/`: **Assignment 73 – Hardware Fragment Barycentrics & Analytic Wireframe Anti-Aliasing (`VK_KHR_fragment_shader_barycentric`)**
+  - Single-pass dynamic wireframe rendering using hardware `gl_BaryCoordEXT` and screen-space partial derivative width `fwidth(bary)`.
+- `assignment74_device_fault_bda_telemetry/`: **Assignment 74 – Device Address Binding Reporting & Post-Mortem GPU Page-Fault Telemetry (`VK_EXT_device_address_binding_report` / `VK_EXT_device_fault`)**
+  - 64-bit Buffer Device Address raw pointer dereferencing (`GL_EXT_buffer_reference2`) with host-side memory interval registration and fault triage telemetry.
+- `assignment75_shader_tile_image_deferred/`: **Assignment 75 – Tile-Local Subpass Operations & Dynamic Shading via Tile Image (`VK_EXT_shader_tile_image`)**
+  - Zero-bandwidth G-Buffer MRT rasterization and tile-local deferred lighting resolve within on-chip tile memory.
+- `assignment76_maintenance7_workgroup_specialization/`: **Assignment 76 – Maintenance 7 Dynamic Workgroup Specialization (`VK_KHR_maintenance7`)**
+  - Subgroup limit introspection and dynamic workgroup size specialization constants (`local_size_x_id`) driving turbulent particle physics simulation.
+- `assignment77_ray_tracing_curve_swept_spheres/`: **Assignment 77 – Ray Tracing Swept Spheres & Curve Primitives (`VK_NV_ray_tracing_linear_swept_spheres`)**
+  - Hardware linear swept sphere (LSS) strand primitives, continuous 3D fiber tube generation, and dynamic Blinn-Phong shading.
+- `assignment78_render_graph_dag_transpiler/`: **Assignment 78 – Multi-Queue Timeline Render Graph with Automatic Synchronization2 Transpiler**
+  - Directed Acyclic Graph (DAG) topological pass compiler with automated RAW/WAR hazard detection and zero-manual `VkDependencyInfo` barrier emission.
+- `assignment79_optical_flow_motion_vectors/`: **Assignment 79 – Hardware Optical Flow Vector Estimation & Temporal Reprojection (`VK_NV_optical_flow`)**
+  - Dense screen-space 2D velocity fields, temporal reprojection delta tracking, and chromatic HSV motion field visualization.
+- `assignment80_ultimate_mega_engine_capstone/`: **Assignment 80 – The Ultimate Autonomous Vulkan 1.4 Unified Mega-Engine Capstone**
+  - Master synthesis: 64-bit BDA descriptorless geometry, Synchronization2 pipeline hazard barriers, Dynamic Rendering multi-light PBR forward shading, and zero-CPU descriptor pool binding.
 
 
 ## Build Instructions (Clang 17+ & Vulkan 1.4 Standard)
+
 
 
 ### 1. Configure with Clang Toolset & Vulkan 1.4 SDK:

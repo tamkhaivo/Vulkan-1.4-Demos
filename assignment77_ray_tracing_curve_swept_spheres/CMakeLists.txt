@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment77_ray_tracing_curve_swept_spheres assignment77_ray_tracing_curve_swept_spheres)

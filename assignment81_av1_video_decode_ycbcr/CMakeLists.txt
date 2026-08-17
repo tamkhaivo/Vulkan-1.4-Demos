@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment81_av1_video_decode_ycbcr assignment81_av1_video_decode_ycbcr)

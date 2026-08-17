@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment73_fragment_barycentrics_wireframe assignment73_fragment_barycentrics_wireframe)

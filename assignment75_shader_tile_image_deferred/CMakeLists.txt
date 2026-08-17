@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment75_shader_tile_image_deferred assignment75_shader_tile_image_deferred)

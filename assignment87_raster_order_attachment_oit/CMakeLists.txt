@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment87_raster_order_attachment_oit assignment87_raster_order_attachment_oit)

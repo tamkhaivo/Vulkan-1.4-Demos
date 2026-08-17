@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment86_sparse_virtual_megatexturing assignment86_sparse_virtual_megatexturing)

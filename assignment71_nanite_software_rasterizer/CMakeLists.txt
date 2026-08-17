@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment71_nanite_software_rasterizer assignment71_nanite_software_rasterizer)

@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment88_async_physics_direct_meshlet assignment88_async_physics_direct_meshlet)

@@ -1,0 +1,1 @@
+add_vulkan_assignment(assignment78_render_graph_dag_transpiler assignment78_render_graph_dag_transpiler)
